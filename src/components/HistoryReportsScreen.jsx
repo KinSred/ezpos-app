@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
-import { Calendar, DollarSign, ShoppingBag, Printer, ChevronRight, TrendingUp, BarChart3, Percent, Search, X, ChevronLeft, Trash2 } from 'lucide-react';
+import { Calendar, DollarSign, ShoppingBag, Printer, ChevronRight, TrendingUp, BarChart3, Percent, Search, X, ChevronLeft, Trash2, Download } from 'lucide-react';
 import PrintableReceipt from './PrintableReceipt';
 import ReturnOrderModal from './ReturnOrderModal';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
 
 export default function HistoryReportsScreen() {
   const [activeTab, setActiveTab] = useState('history'); // 'history' or 'reports'
@@ -237,6 +237,43 @@ export default function HistoryReportsScreen() {
     }
   };
 
+  const handleExportCSV = () => {
+    if (!orders || orders.length === 0) {
+      toast.error("Không có dữ liệu để xuất!");
+      return;
+    }
+    const headers = ["Mã HĐ", "Ngày Bán", "Giờ Bán", "Khách Hàng", "SĐT", "Phương Thức", "Tổng Tiền", "Chiết Khấu", "Tiền Khách Đưa", "Tiền Thừa"];
+    
+    const rows = orders.map(order => {
+      const date = new Date(order.timestamp);
+      const dateStr = `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
+      const timeStr = `${date.getHours()}:${date.getMinutes()}`;
+      
+      return [
+        `HD-${order.id}`,
+        dateStr,
+        timeStr,
+        order.customerName || "Khách vãng lai",
+        order.customerPhone || "",
+        order.paymentMethod === 'vietqr' ? "Chuyển khoản QR" : "Tiền mặt",
+        order.total,
+        order.discount || 0,
+        order.cashReceived || 0,
+        order.changeAmount || 0
+      ].map(field => `"${field}"`).join(',');
+    });
+
+    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + [headers.join(','), ...rows].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `BaoCao_EZPOS_${new Date().getTime()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("Đã tải báo cáo Excel/CSV!");
+  };
+
   // --- State Management: Loading State ---
   if (orders === undefined) {
     return (
@@ -356,31 +393,43 @@ export default function HistoryReportsScreen() {
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Xem lại các hóa đơn đã bán và theo dõi báo cáo doanh thu cửa hàng.</p>
           </div>
 
-          {/* Segmented control for tabs */}
-          <div className="flex bg-sky-100/60 dark:bg-sky-950/40 p-1 rounded-xl w-fit border border-sky-200/40 dark:border-sky-800/30">
-            <motion.button 
-              whileTap={{ scale: 0.97 }}
-              onClick={() => { setActiveTab('history'); setSelectedOrder(null); }}
-              className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 ${
-                activeTab === 'history' 
-                  ? 'bg-sky-600 dark:bg-sky-500 text-white shadow-sm' 
-                  : 'text-slate-600 dark:text-slate-300 hover:text-sky-600 dark:hover:text-sky-300 hover:bg-white/40 dark:hover:bg-white/5'
-              }`}
-              aria-label="Xem Tab Lịch sử hóa đơn"
+          <div className="flex items-center gap-3">
+            {/* Segmented control for tabs */}
+            <div className="flex bg-sky-100/60 dark:bg-sky-950/40 p-1 rounded-xl border border-sky-200/40 dark:border-sky-800/30">
+              <motion.button 
+                whileTap={{ scale: 0.97 }}
+                onClick={() => { setActiveTab('history'); setSelectedOrder(null); }}
+                className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 ${
+                  activeTab === 'history' 
+                    ? 'bg-sky-600 dark:bg-sky-500 text-white shadow-sm' 
+                    : 'text-slate-600 dark:text-slate-300 hover:text-sky-600 dark:hover:text-sky-300 hover:bg-white/40 dark:hover:bg-white/5'
+                }`}
+                aria-label="Xem Tab Lịch sử hóa đơn"
+              >
+                Lịch sử hóa đơn
+              </motion.button>
+              <motion.button 
+                whileTap={{ scale: 0.97 }}
+                onClick={() => { setActiveTab('reports'); setSelectedOrder(null); }}
+                className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 ${
+                  activeTab === 'reports' 
+                    ? 'bg-sky-600 dark:bg-sky-500 text-white shadow-sm' 
+                    : 'text-slate-600 dark:text-slate-300 hover:text-sky-600 dark:hover:text-sky-300 hover:bg-white/40 dark:hover:bg-white/5'
+                }`}
+                aria-label="Xem Tab Báo cáo doanh số"
+              >
+                Báo cáo doanh số
+              </motion.button>
+            </div>
+            
+            {/* Nút Xuất Báo Cáo */}
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              onClick={handleExportCSV}
+              className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-sm font-bold shadow-sm transition-all focus:outline-none"
             >
-              Lịch sử hóa đơn
-            </motion.button>
-            <motion.button 
-              whileTap={{ scale: 0.97 }}
-              onClick={() => { setActiveTab('reports'); setSelectedOrder(null); }}
-              className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 ${
-                activeTab === 'reports' 
-                  ? 'bg-sky-600 dark:bg-sky-500 text-white shadow-sm' 
-                  : 'text-slate-600 dark:text-slate-300 hover:text-sky-600 dark:hover:text-sky-300 hover:bg-white/40 dark:hover:bg-white/5'
-              }`}
-              aria-label="Xem Tab Báo cáo doanh số"
-            >
-              Báo cáo doanh số
+              <Download size={16} />
+              <span className="hidden sm:inline">Xuất CSV</span>
             </motion.button>
           </div>
         </div>
@@ -866,30 +915,61 @@ export default function HistoryReportsScreen() {
             </div>
 
             {/* Top Products Leaderboard */}
-            <div className="glass-card rounded-3xl p-6 flex flex-col transition-colors duration-500 mt-6">
-              <div>
-                <h3 className="text-base font-bold text-sky-950 dark:text-white mb-1">Sản phẩm bán chạy nhất</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mb-5">Xếp hạng sản phẩm theo số lượng bán ra.</p>
+            <div className="glass-card rounded-3xl p-6 flex flex-col transition-colors duration-500 mt-6 min-h-[350px]">
+              <div className="mb-4">
+                <h3 className="text-base font-bold text-sky-950 dark:text-white mb-1">Top 5 Sản phẩm bán chạy nhất</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Xếp hạng sản phẩm theo số lượng bán ra trong tháng.</p>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-4 divide-y sm:divide-y-0 sm:divide-x divide-black/5 dark:divide-white/5">
+              <div className="flex-1 w-full min-h-[250px]">
                 {topProducts.length === 0 ? (
-                  <div className="text-center text-xs text-slate-500 dark:text-slate-400 py-4 w-full">Chưa có dữ liệu bán hàng.</div>
+                  <div className="text-center text-sm text-slate-500 dark:text-slate-400 flex items-center justify-center h-full">Chưa có dữ liệu bán hàng.</div>
                 ) : (
-                  topProducts.map((product, idx) => (
-                    <div key={product.id} className="flex-1 flex flex-col items-center pt-3 sm:pt-0 sm:px-4 first:pt-0 first:px-0 first:pl-0 last:pr-0">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs mb-2 ${
-                        idx === 0 ? 'bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400' :
-                        idx === 1 ? 'bg-slate-100 text-slate-600 dark:bg-slate-500/20 dark:text-slate-400' :
-                        idx === 2 ? 'bg-orange-100 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400' :
-                        'bg-black/5 dark:bg-white/5 text-slate-500 dark:text-slate-400'
-                      }`}>
-                        #{idx + 1}
-                      </div>
-                      <span className="font-bold text-slate-900 dark:text-slate-100 text-sm text-center line-clamp-1 mb-1" title={product.name}>{product.name}</span>
-                      <span className="text-xs text-slate-500 dark:text-slate-400">Đã bán: <strong className="text-sky-600 dark:text-sky-400">{product.qty}</strong></span>
-                    </div>
-                  ))
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={topProducts}
+                      layout="vertical"
+                      margin={{ top: 5, right: 30, left: 60, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#E2E8F0" strokeOpacity={0.4} className="dark:stroke-slate-800/40" />
+                      <XAxis type="number" hide />
+                      <YAxis 
+                        dataKey="name" 
+                        type="category" 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{ fill: '#64748B', fontSize: 11, fontWeight: 'bold' }} 
+                        width={120}
+                      />
+                      <RechartsTooltip
+                        cursor={{ fill: 'rgba(14, 165, 233, 0.05)' }}
+                        contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.95)', border: '1px solid rgba(0,0,0,0.05)', borderRadius: '16px', color: '#0F172A', backdropFilter: 'blur(12px)', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}
+                        formatter={(value) => [`${value} sản phẩm`, 'Đã bán']}
+                        labelStyle={{ fontWeight: 'black', color: '#0F172A', fontSize: '13px' }}
+                      />
+                      <Bar 
+                        dataKey="qty" 
+                        fill="url(#barGrad)" 
+                        radius={[0, 8, 8, 0]}
+                        barSize={32}
+                        label={{ position: 'right', fill: '#0EA5E9', fontWeight: 'bold', fontSize: 12 }}
+                      >
+                        {topProducts.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={index === 0 ? 'url(#topBarGrad)' : 'url(#barGrad)'} />
+                        ))}
+                      </Bar>
+                      <defs>
+                        <linearGradient id="barGrad" x1="0" y1="0" x2="1" y2="0">
+                          <stop offset="0%" stopColor="#38BDF8" />
+                          <stop offset="100%" stopColor="#0EA5E9" />
+                        </linearGradient>
+                        <linearGradient id="topBarGrad" x1="0" y1="0" x2="1" y2="0">
+                          <stop offset="0%" stopColor="#F59E0B" />
+                          <stop offset="100%" stopColor="#D97706" />
+                        </linearGradient>
+                      </defs>
+                    </BarChart>
+                  </ResponsiveContainer>
                 )}
               </div>
             </div>
