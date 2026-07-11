@@ -93,6 +93,15 @@ Hệ thống được thiết kế theo phong cách SaaS tối giản cao cấp 
 - **Quét mã vạch trực quan**: Thiết kế máy quét với vòng tròn radar đồng tâm đứt nét và **đường laser neon quét dọc tự động** trượt lên xuống tạo cảm giác hiện đại.
 - **Segmented Control độc lập**: Bộ chuyển đổi Đơn vị tính (Lẻ/Lốc/Sỉ) trong giỏ hàng sử dụng `layoutId` độc lập cho từng sản phẩm.
 - **Bảng dữ liệu tối giản (Stripe Style)**: Viền mỏng, khoảng cách thoáng đãng, các badge tồn kho màu sắc nổi bật với hoạt họa nhấp nháy báo hết hàng.
+- **Cập nhật Tự động Đa Nền Tảng (Auto-Update qua GitHub Releases)**:
+  * Tích hợp `electron-updater` liên kết trực tiếp với GitHub Releases.
+  * Hỗ trợ tự động dò bản mới, tải ngầm (có thanh tiến trình phần trăm trên UI Settings) và tự động cài đặt cho cả Windows (`.exe`) và macOS (`.dmg`).
+  * Khắc phục lỗi CommonJS/ESM khi đóng gói bằng cách import theo chuẩn: `import pkg from 'electron-updater'; const { autoUpdater } = pkg;`.
+- **Báo cáo Phân tích Chuyên sâu (Advanced Dashboard & Export)**:
+  * Trang lịch sử được tái thiết kế thành Dashboard hiện đại với **Biểu đồ Tròn (PieChart)** hiển thị trực quan tỉ trọng thanh toán (Tiền mặt/Chuyển khoản).
+  * Xếp hạng Top 5 Sản phẩm bán chạy bằng **Biểu đồ Cột ngang (BarChart)** với hiệu ứng gradient vàng đồng (Amber) tôn vinh sản phẩm "gánh doanh thu".
+  * Tính năng **Xuất dữ liệu (Export to CSV/Excel)** chỉ với một chạm, hỗ trợ truy xuất lập tức toàn bộ lịch sử bán hàng và tính toán sổ sách kế toán.
+
 
 ## 6. Hướng dẫn Resume (Dành cho AI)
 Khi người dùng mở lại dự án và yêu cầu bạn đọc file này:
