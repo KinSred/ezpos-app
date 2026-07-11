@@ -1,0 +1,244 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { ScanLine, Search, X, Package, Barcode } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { db } from '../db';
+import { removeAccents } from '../utils/string';
+
+export default function ScannerColumn({ onScan, onSelectProduct, onAddProduct, isActive = true }) {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const onScanRef = useRef(onScan);
+
+  // Keep ref updated without triggering re-renders
+  useEffect(() => {
+    onScanRef.current = onScan;
+  }, [onScan]);
+
+  // Search logic
+  useEffect(() => {
+    const searchProducts = async () => {
+      if (!searchQuery.trim()) {
+        setSearchResults([]);
+        return;
+      }
+      const q = removeAccents(searchQuery.toLowerCase().trim());
+      try {
+        const matched = await db.products
+          .filter(p => removeAccents(p.name.toLowerCase()).includes(q) || p.barcode.toLowerCase().includes(q))
+          .limit(10)
+          .toArray();
+        setSearchResults(matched);
+      } catch (err) {
+        console.error("Search products error:", err);
+      }
+    };
+    searchProducts();
+  }, [searchQuery]);
+
+  // Global listener for Barcode Scanner Gun (USB/Bluetooth)
+  useEffect(() => {
+    if (!isActive) return;
+    let barcodeKeys = '';
+
+    const handleGlobalKeyDown = (e) => {
+      // If typing inside an input/textarea, ignore to avoid conflict
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+        return;
+      }
+
+      if (e.key === 'Enter') {
+        if (barcodeKeys.length >= 4) {
+          onScanRef.current(barcodeKeys);
+          e.preventDefault();
+        }
+        barcodeKeys = '';
+      } else if (e.key.length === 1) {
+        barcodeKeys += e.key;
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [isActive]);
+
+  return (
+    <div 
+      className="flex flex-col h-full bg-transparent transition-colors duration-500"
+      aria-label="Cột máy quét mã vạch và tìm kiếm"
+    >
+      {/* Header */}
+      <div className="px-6 py-5 border-b border-slate-200/50 dark:border-slate-800/50 flex items-center justify-between flex-shrink-0 bg-white/40 dark:bg-slate-900/40 backdrop-blur-md">
+        <h2 className="font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2 text-base">
+          <div className="bg-sky-500 text-white p-1.5 rounded-xl shadow-[0_2px_10px_rgba(14,165,233,0.3)]">
+            <ScanLine size={18} strokeWidth={2.5} />
+          </div>
+          Tìm Kiếm & Quét Mã
+        </h2>
+        <div className="flex gap-2">
+          <button 
+            onClick={onAddProduct}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-600 dark:bg-sky-500/10 dark:hover:bg-sky-500/20 dark:text-sky-400 transition-all text-xs font-bold focus:outline-none focus:ring-2 focus:ring-sky-500/50 active:scale-[0.96]"
+            aria-label="Thêm mới sản phẩm"
+          >
+            <Package size={14} />
+            Thêm
+          </button>
+        </div>
+      </div>
+
+      {/* Search Bar */}
+      <div className="px-6 py-4 border-b border-slate-200/50 dark:border-slate-800/50 flex-shrink-0">
+        <div className="relative group">
+          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+            <Search className="text-slate-400 group-focus-within:text-sky-500 transition-colors" size={18} />
+          </div>
+          <input 
+            id="scanner-search-input"
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-12 pr-12 py-4 bg-white/80 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80 rounded-2xl text-lg font-bold text-slate-800 dark:text-slate-100 placeholder:text-slate-400 placeholder:text-sm placeholder:font-normal focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500/50 shadow-sm transition-all"
+            placeholder="Tìm tên hoặc mã vạch sản phẩm..."
+            aria-label="Tìm kiếm sản phẩm"
+          />
+          {searchQuery && (
+            <button 
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-rose-500 bg-slate-100 dark:bg-slate-700 hover:bg-rose-50 dark:hover:bg-rose-500/20 p-1 rounded-full transition-all active:scale-[0.96] focus:outline-none focus:ring-2 focus:ring-rose-500/50"
+              aria-label="Xóa từ khóa tìm kiếm"
+            >
+              <X size={14} />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Main Area */}
+      {!searchQuery ? (
+        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center relative overflow-hidden">
+          {/* Animated Background Radar Rings */}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-50 dark:opacity-30">
+            <motion.div 
+              animate={{ scale: [0.8, 1.8, 2.4], opacity: [0.6, 0.2, 0] }}
+              transition={{ duration: 2.5, repeat: Infinity, ease: "easeOut" }}
+              className="absolute w-36 h-36 rounded-full border-2 border-dashed border-sky-400/40"
+            />
+            <motion.div 
+              animate={{ scale: [0.8, 2.2, 2.8], opacity: [0.4, 0.1, 0] }}
+              transition={{ duration: 2.5, delay: 0.8, repeat: Infinity, ease: "easeOut" }}
+              className="absolute w-36 h-36 rounded-full border border-sky-350/20"
+            />
+            <motion.div 
+              animate={{ scale: [0.6, 1.3, 1.9], opacity: [0.5, 0.15, 0] }}
+              transition={{ duration: 2.5, delay: 1.6, repeat: Infinity, ease: "easeOut" }}
+              className="absolute w-36 h-36 rounded-full border-2 border-indigo-400/30"
+            />
+          </div>
+
+          <motion.div 
+            whileHover={{ scale: 1.06, y: -4 }}
+            whileTap={{ scale: 0.96 }}
+            className="relative z-10 w-32 h-32 mb-6 rounded-[2.25rem] bg-white/90 dark:bg-slate-900/90 shadow-[0_20px_50px_rgba(14,165,233,0.12)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.4)] border border-slate-200/50 dark:border-slate-800/80 flex flex-col items-center justify-center cursor-pointer group overflow-hidden"
+            onClick={() => document.querySelector('input[placeholder*="Tìm tên"]').focus()}
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-sky-500/10 to-indigo-500/10 rounded-[2.25rem] group-hover:opacity-100 transition-opacity"></div>
+            <div className="relative p-4 flex flex-col items-center justify-center">
+              <motion.div
+                className="relative"
+                animate={{ y: [-3, 3, -3] }}
+                transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+              >
+                <Barcode size={52} className="text-sky-500 dark:text-sky-400 mb-1 group-hover:text-indigo-500 dark:group-hover:text-indigo-400 transition-colors" strokeWidth={1.5} />
+                
+                {/* Horizontal glowing laser line */}
+                <motion.div 
+                  className="absolute left-0 right-0 h-[2px] bg-cyan-400 shadow-[0_0_8px_#22d3ee,0_0_15px_#06b6d4]"
+                  animate={{ top: ['5%', '95%', '5%'] }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                />
+              </motion.div>
+              
+              <div className="w-10 h-1 bg-slate-200 dark:bg-slate-700 rounded-full mt-2 overflow-hidden relative">
+                <motion.div 
+                  animate={{ x: [-20, 20, -20] }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                  className="absolute inset-y-0 w-4 bg-sky-500 rounded-full shadow-[0_0_6px_rgba(14,165,233,0.8)]"
+                />
+              </div>
+            </div>
+          </motion.div>
+          
+          <h3 className="relative z-10 text-lg font-extrabold text-slate-800 dark:text-slate-100 mb-2 tracking-tight">
+            Sẵn Sàng Quét Mã
+          </h3>
+          
+          <p className="relative z-10 text-slate-500 dark:text-slate-400 text-xs max-w-[240px] leading-relaxed font-medium">
+            Dùng máy quét cầm tay quét vào mã vạch để thêm nhanh, hoặc tìm tên sản phẩm ở ô tìm kiếm.
+          </p>
+        </div>
+      ) : searchResults.length > 0 ? (
+        <div className="flex-1 overflow-y-auto p-4 space-y-2">
+          <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3 px-2 flex items-center justify-between">
+            <span>Kết quả tìm kiếm</span>
+            <span className="bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded-md text-xs font-black">{searchResults.length}</span>
+          </div>
+          <motion.div
+            initial="hidden"
+            animate="visible"
+            variants={{
+              visible: { transition: { staggerChildren: 0.05 } },
+              hidden: {}
+            }}
+            className="space-y-2.5"
+          >
+            {searchResults.map((product) => (
+              <motion.button
+                variants={{
+                  hidden: { opacity: 0, y: 8, scale: 0.97 },
+                  visible: { opacity: 1, y: 0, scale: 1 }
+                }}
+                whileHover={{ y: -2, scale: 1.01 }}
+                whileTap={{ scale: 0.98 }}
+                key={product.id}
+                onClick={() => {
+                  onSelectProduct(product);
+                  setSearchQuery('');
+                }}
+                className="w-full text-left p-4 bg-white/60 dark:bg-slate-800/40 hover:bg-white dark:hover:bg-slate-800 border border-slate-200/50 dark:border-slate-700/50 rounded-2xl shadow-sm hover:shadow-md flex items-center justify-between transition-all group focus:outline-none focus:ring-2 focus:ring-sky-500"
+              >
+                <div className="flex-1 min-w-0 pr-3">
+                  <div className="font-extrabold text-slate-850 dark:text-slate-100 text-base truncate group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors">
+                    {product.name}
+                  </div>
+                  <div className="flex items-center gap-2 mt-1.5 font-medium">
+                    <span className="text-sky-600 dark:text-sky-400 font-extrabold text-sm flex-shrink-0">
+                      {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(product.price)}
+                    </span>
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono tracking-wider truncate">
+                      {product.barcode}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900 border border-slate-250/20 dark:border-slate-700/30 text-xs font-black text-slate-600 dark:text-slate-300 px-4 py-2.5 rounded-xl shadow-sm group-hover:bg-sky-500 group-hover:border-sky-500 group-hover:text-white dark:group-hover:bg-sky-500 dark:group-hover:border-sky-500 dark:group-hover:text-white transition-all flex-shrink-0">
+                  Thêm
+                </div>
+              </motion.button>
+            ))}
+          </motion.div>
+        </div>
+      ) : (
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="flex-1 flex flex-col items-center justify-center p-8 text-center"
+        >
+          <div className="w-20 h-20 bg-slate-100/50 dark:bg-slate-800/40 rounded-full flex items-center justify-center mb-4 border border-slate-200/20 dark:border-slate-700/20">
+            <Package size={32} className="text-slate-400 dark:text-slate-500" />
+          </div>
+          <h4 className="text-base font-extrabold text-slate-800 dark:text-slate-100 mb-1.5">Không tìm thấy sản phẩm</h4>
+          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-[220px] leading-relaxed">Không có mặt hàng nào khớp với "{searchQuery}". Hãy thử thêm mới sản phẩm.</p>
+        </motion.div>
+      )}
+    </div>
+  );
+}

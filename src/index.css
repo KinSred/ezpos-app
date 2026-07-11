@@ -1,0 +1,110 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  html {
+    font-size: 16px; /* Standard browser size, removes the artificial zoom */
+  }
+
+  body {
+    @apply bg-gradient-to-tr from-slate-50 via-slate-100/70 to-indigo-50/30 text-slate-900 antialiased font-sans transition-colors duration-500 min-h-screen;
+    /* Typography enhancements */
+    letter-spacing: -0.015em;
+  }
+  
+  body.dark {
+    @apply bg-gradient-to-tr from-[#030712] via-[#0b0f19] to-[#111827] text-slate-100;
+  }
+}
+
+@layer utilities {
+  .glass-card {
+    @apply bg-white/70 dark:bg-slate-900/60 backdrop-blur-xl border border-slate-200/50 dark:border-slate-800/50 shadow-[0_8px_32px_rgba(0,0,0,0.03)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.3)];
+  }
+  
+  .ocean-text {
+    @apply text-sky-600 dark:text-sky-400;
+  }
+}
+
+/* Custom scrollbar for modern look */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Dark mode scrollbars */
+.dark ::-webkit-scrollbar-thumb {
+  background: #3a3a3c;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #48484a;
+}
+
+/* Printing styles for thermal invoice */
+@media print {
+  @page {
+    margin: 0;
+    size: 64mm auto;
+  }
+  html, body {
+    background: white !important;
+    color: black !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 64mm !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+  
+  /* Hide the main app container completely during print */
+  #root {
+    display: none !important;
+  }
+  
+  .print-only {
+    display: block !important;
+    margin: 0 auto !important;
+  }
+}
+
+/* Format the printable receipt globally so offscreen measurement matches actual print size */
+.print-only {
+  width: 64mm !important;
+  /* Bù trừ cơ học tối đa: lề trái 7.5mm và lề phải 0.5mm để kéo giãn hết cỡ nội dung sang hai bên rìa */
+  padding: 2mm 0.5mm 15mm 7.5mm !important;
+  box-sizing: border-box;
+  background: white !important;
+  color: black !important;
+  font-family: 'Courier New', Courier, monospace !important;
+}
+
+@media screen {
+  .print-only {
+    position: absolute !important;
+    left: -9999px !important;
+    top: -9999px !important;
+    display: block !important;
+  }
+}
+
+/* Hide default browser spinner arrows on number inputs */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
