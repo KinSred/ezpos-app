@@ -1,8 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Users, Search, DollarSign, CreditCard, History, X, Calendar, Receipt, UserPlus, Tag, Plus, ChevronDown, Trash2, Info, Edit2 } from 'lucide-react';
+import { Users, Search, DollarSign, CreditCard, History, X, Calendar, Receipt, UserPlus, Tag, Plus, ChevronDown, Trash2, Info, Edit2, Printer } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { db } from '../db';
 import toast from 'react-hot-toast';
+import { silentPrint } from '../utils/silentPrint';
+import PrintableReceipt from './PrintableReceipt';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 
 export default function CustomersScreen() {
   const [customers, setCustomers] = useState([]);
@@ -14,6 +18,16 @@ export default function CustomersScreen() {
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [customerHistory, setCustomerHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+
+  const [showPrintDebtModal, setShowPrintDebtModal] = useState(false);
+  const [printDateFrom, setPrintDateFrom] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 7);
+    return d;
+  });
+  const [printDateTo, setPrintDateTo] = useState(new Date());
+  const [isPrintingDebt, setIsPrintingDebt] = useState(false);
+  const [activePrintOrder, setActivePrintOrder] = useState(null);
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [newPhone, setNewPhone] = useState('');
@@ -299,29 +313,22 @@ export default function CustomersScreen() {
 
     const amount = parseFloat(paymentAmount.replace(/,/g, ''));
     if (isNaN(amount) || amount <= 0) {
-      toast.error('Vui lòng nhập số tiền hợp lệ');
-      return;
-    }
-
-    if (amount > (selectedCustomer.debt || 0)) {
-      toast.error('Số tiền trả không được lớn hơn số nợ hiện tại');
+      toast.error('Số tiền không hợp lệ');
       return;
     }
 
     try {
       const newDebt = (selectedCustomer.debt || 0) - amount;
       await db.customers.update(selectedCustomer.phone, { debt: newDebt });
-
       await db.customerTransactions.add({
         customerPhone: selectedCustomer.phone,
         timestamp: Date.now(),
         type: 'payment',
         amount: amount,
-        note: 'Khách thanh toán trả nợ',
+        note: 'Thanh toán nợ',
         remainingDebt: newDebt
       });
-      
-      toast.success(`Đã thanh toán ${formatPrice(amount)} cho khách hàng ${selectedCustomer.name}`);
+      toast.success(`Đã thanh toán ${formatPrice(amount)}`);
       setShowPaymentModal(false);
       setSelectedCustomer(null);
       setPaymentAmount('');
@@ -329,6 +336,76 @@ export default function CustomersScreen() {
     } catch (err) {
       console.error(err);
       toast.error('Lỗi khi thanh toán nợ');
+    }
+  };
+
+  const handleBatchPrintDebt = async (e) => {
+    e.preventDefault();
+    if (!printDateFrom || !printDateTo) {
+      toast.error('Vui lòng chọn đầy đủ thời gian Từ ngày và Đến ngày');
+      return;
+    }
+
+    const startTimestamp = new Date(printDateFrom).setHours(0, 0, 0, 0);
+    const endTimestamp = new Date(printDateTo).setHours(23, 59, 59, 999);
+
+    if (startTimestamp > endTimestamp) {
+      toast.error('Thời gian bắt đầu không được lớn hơn thời gian kết thúc');
+      return;
+    }
+
+    setIsPrintingDebt(true);
+    const loadingToast = toast.loading('Đang chuẩn bị in các hóa đơn nợ...');
+    
+    try {
+      const txs = await db.customerTransactions
+        .where('customerPhone').equals(selectedCustomer.phone)
+        .toArray();
+      
+      const targetTxs = txs.filter(tx => 
+        tx.type === 'debt' && 
+        tx.timestamp >= startTimestamp && 
+        tx.timestamp <= endTimestamp && 
+        tx.orderId // Must have an associated orderId
+      );
+
+      if (targetTxs.length === 0) {
+        toast.error('Không tìm thấy hóa đơn nợ nào trong khoảng thời gian này!', { id: loadingToast });
+        setIsPrintingDebt(false);
+        return;
+      }
+
+      // Sort chronological
+      targetTxs.sort((a, b) => a.timestamp - b.timestamp);
+      
+      let printedCount = 0;
+      
+      for (const tx of targetTxs) {
+        // Use indexed timestamp to find the exact order
+        const order = await db.orders.where('timestamp').equals(tx.timestamp).first();
+        if (order) {
+          toast.loading(`Đang in đơn nợ ngày ${new Date(order.timestamp).toLocaleDateString('vi-VN')}...`, { id: loadingToast });
+          
+          setActivePrintOrder(order);
+          // Wait for DOM to render the PrintableReceipt component before taking PDF snapshot
+          await new Promise(r => setTimeout(r, 250)); 
+          
+          await silentPrint(order);
+          
+          setActivePrintOrder(null);
+          // Wait 1.5 seconds between prints to avoid overwhelming the printer buffer
+          await new Promise(r => setTimeout(r, 1500));
+          printedCount++;
+        }
+      }
+
+      toast.success(`Đã in thành công ${printedCount} hóa đơn nợ!`, { id: loadingToast });
+      setShowPrintDebtModal(false);
+    } catch (err) {
+      console.error(err);
+      toast.error('Có lỗi xảy ra trong quá trình in', { id: loadingToast });
+    } finally {
+      setIsPrintingDebt(false);
     }
   };
 
@@ -556,6 +633,16 @@ export default function CustomersScreen() {
                   <span className="text-2xl font-black text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/20 border border-rose-200/50 dark:border-rose-900/30 px-3 py-1 rounded-2xl shadow-sm font-mono">
                     {formatPrice(selectedCustomer.debt || 0)}
                   </span>
+                  
+                  {(selectedCustomer.debt || 0) > 0 && (
+                    <button
+                      onClick={() => setShowPrintDebtModal(true)}
+                      className="mt-2 flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 dark:bg-amber-900/30 hover:bg-amber-200 dark:hover:bg-amber-800/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-700/50 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-colors active:scale-95"
+                    >
+                      <Printer size={12} />
+                      In Các Đơn Nợ
+                    </button>
+                  )}
                 </div>
 
                 <button 
@@ -1081,6 +1168,101 @@ export default function CustomersScreen() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Print Debt Modal */}
+      <AnimatePresence>
+        {showPrintDebtModal && selectedCustomer && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-800"
+            >
+              <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950">
+                <h3 className="font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                  <Printer className="text-amber-500" size={20} />
+                  In Lại Các Đơn Ghi Nợ
+                </h3>
+                <button 
+                  onClick={() => setShowPrintDebtModal(false)}
+                  disabled={isPrintingDebt}
+                  className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/5 text-slate-500 transition-colors disabled:opacity-50"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <form onSubmit={handleBatchPrintDebt} className="p-6 space-y-5">
+                <div className="bg-amber-50 dark:bg-amber-500/10 p-3 rounded-xl border border-amber-100 dark:border-amber-500/20 text-xs text-amber-800 dark:text-amber-400 leading-relaxed font-medium">
+                  Hệ thống sẽ tìm và in lại toàn bộ các hoá đơn mua hàng ghi nợ của khách hàng này trong khoảng thời gian được chọn. Các hoá đơn sẽ được in lần lượt.
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="relative z-20">
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                      <Calendar size={12} className="text-amber-500" /> Từ Ngày
+                    </label>
+                    <DatePicker 
+                      selected={printDateFrom}
+                      onChange={(date) => setPrintDateFrom(date)}
+                      disabled={isPrintingDebt}
+                      dateFormat="dd/MM/yyyy"
+                      className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:border-amber-500 focus:ring-1 focus:ring-amber-500 focus:outline-none transition-all text-sm font-semibold"
+                      popperClassName="custom-datepicker-popper"
+                      portalId="root"
+                    />
+                  </div>
+                  <div className="relative z-20">
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                      <Calendar size={12} className="text-amber-500" /> Đến Ngày
+                    </label>
+                    <DatePicker 
+                      selected={printDateTo}
+                      onChange={(date) => setPrintDateTo(date)}
+                      disabled={isPrintingDebt}
+                      dateFormat="dd/MM/yyyy"
+                      className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:border-amber-500 focus:ring-1 focus:ring-amber-500 focus:outline-none transition-all text-sm font-semibold"
+                      popperClassName="custom-datepicker-popper"
+                      portalId="root"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    disabled={isPrintingDebt}
+                    onClick={() => setShowPrintDebtModal(false)}
+                    className="flex-1 px-4 py-3 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-xl font-bold transition-all disabled:opacity-50"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isPrintingDebt}
+                    className="flex-[2] px-4 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold transition-all shadow-lg shadow-amber-500/20 disabled:opacity-70 disabled:cursor-wait flex items-center justify-center gap-2"
+                  >
+                    {isPrintingDebt ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                        Đang In...
+                      </>
+                    ) : (
+                      <>
+                        <Printer size={16} />
+                        Bắt Đầu In
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <PrintableReceipt order={activePrintOrder} isBatchPrint={true} />
     </div>
   );
 }

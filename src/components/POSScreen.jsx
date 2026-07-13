@@ -41,6 +41,21 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
   });
 
   const [activeTabId, setActiveTabId] = useState(() => cartTabs[0]?.id || Date.now());
+  const [showShortcuts, setShowShortcuts] = useState(false);
+
+  useEffect(() => {
+    const handleKey = (e) => {
+      if (e.key === 'Meta' || e.key === 'Control') {
+        setShowShortcuts(e.type === 'keydown');
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    window.addEventListener('keyup', handleKey);
+    return () => {
+      window.removeEventListener('keydown', handleKey);
+      window.removeEventListener('keyup', handleKey);
+    };
+  }, []);
 
   // Derived state from active tab
   const activeTab = cartTabs.find(tab => tab.id === activeTabId) || cartTabs[0];
@@ -130,41 +145,52 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
     let barcodeBuffer = '';
 
     const handleGlobalKeyDown = (e) => {
-      // Shortcuts that should work everywhere (unless input is focused? F-keys don't type text)
-      if (e.key === 'F1') {
+      const isCmdOrCtrl = e.metaKey || e.ctrlKey;
+
+      // F1 or Cmd+F / Cmd+P : Focus scanner search
+      if (e.key === 'F1' || (isCmdOrCtrl && (e.key.toLowerCase() === 'f' || e.key.toLowerCase() === 'p'))) {
         e.preventDefault();
         document.getElementById('scanner-search-input')?.focus();
         return;
       }
-      if (e.key === 'F2') {
+
+      // F2 or Cmd+T : Add Tab
+      if (e.key === 'F2' || (isCmdOrCtrl && e.key.toLowerCase() === 't')) {
         e.preventDefault();
         handleAddTab();
         return;
       }
       
-      // Switch Tab: F3
-      if (e.key === 'F3') {
+      // F3 or Cmd+[ / Cmd+] : Switch Tab
+      if (e.key === 'F3' || (isCmdOrCtrl && (e.key === '[' || e.key === ']'))) {
         e.preventDefault();
         if (cartTabs && cartTabs.length > 1) {
           const currentIndex = cartTabs.findIndex(t => t.id === activeTabId);
-          const nextIndex = (currentIndex + 1) % cartTabs.length;
+          let nextIndex;
+          if (isCmdOrCtrl && e.key === '[') {
+            nextIndex = currentIndex - 1 < 0 ? cartTabs.length - 1 : currentIndex - 1;
+          } else {
+            nextIndex = (currentIndex + 1) % cartTabs.length;
+          }
           setActiveTabId(cartTabs[nextIndex].id);
         }
         return;
       }
 
-      if (e.key === 'F4') {
+      // F4 or Cmd+U : Search customer / Focus customer
+      if (e.key === 'F4' || (isCmdOrCtrl && e.key.toLowerCase() === 'u')) {
         e.preventDefault();
         if (!showConfirmModal && cartItems.length > 0) {
           setShowConfirmModal(true);
-          // Wait for modal to render then focus
           setTimeout(() => document.getElementById('customer-search-input')?.focus(), 100);
         } else {
           document.getElementById('customer-search-input')?.focus();
         }
         return;
       }
-      if (e.key === 'F8' || e.key === 'F9') {
+
+      // F8/F9 or Cmd+Enter : Checkout explicitly
+      if (e.key === 'F8' || e.key === 'F9' || (isCmdOrCtrl && e.key === 'Enter')) {
         e.preventDefault();
         if (!showConfirmModal && !showSuccessModal && !showAddProductModal && !showDuplicateModal) {
           if (cartItems.length > 0) {
@@ -176,7 +202,8 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
         return;
       }
 
-      if (e.key === 'F10') {
+      // F10 or Cmd+D : Toggle wholesale/retail mode
+      if (e.key === 'F10' || (isCmdOrCtrl && e.key.toLowerCase() === 'd')) {
         e.preventDefault();
         if (cartItems.length > 0) {
           const allWholesale = cartItems.every(item => item.sellMode === 'wholesale' || (!item.sellMode && item.isWholesale));
@@ -197,13 +224,10 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
       if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
         if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
           e.preventDefault();
-          const inputs = document.querySelectorAll('.cart-qty-input');
-          if (inputs.length > 0) {
-            if (e.key === 'ArrowDown') {
-              inputs[0].focus();
-            } else {
-              inputs[inputs.length - 1].focus();
-            }
+          if (cartItems.length > 0) {
+            const firstItem = cartItems[0];
+            const diff = e.key === 'ArrowUp' ? 1 : -1;
+            updateCartItemQty(firstItem.cartId, diff);
           }
           return;
         }
@@ -212,7 +236,7 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
       // Ignore text typing if user is typing in an input or textarea
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
-      if (e.key !== 'Enter' && e.key.length === 1) {
+      if (e.key !== 'Enter' && e.key.length === 1 && !isCmdOrCtrl) {
         barcodeBuffer += e.key;
       }
 
@@ -704,6 +728,7 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
               onScan={handleScan} 
               onSelectProduct={handleSelectProduct} 
               onAddProduct={() => setShowAddProductModal(true)} 
+              showShortcuts={showShortcuts}
             />
           </div>
 
@@ -734,6 +759,7 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
               onAddTab={handleAddTab}
               onRemoveTab={handleRemoveTab}
               onSwitchTab={setActiveTabId}
+              showShortcuts={showShortcuts}
             />
           </div>
         </div>
@@ -771,6 +797,7 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
             onRemoveItem={removeCartItem}
             onUpdateCustomPrice={setCartItemCustomDiscount}
             mode={mode}
+            showShortcuts={showShortcuts}
           />
         )}
 

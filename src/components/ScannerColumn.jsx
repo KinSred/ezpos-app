@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ScanLine, Search, X, Package, Barcode } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { ScanLine, Search, X, Package, Barcode, Command } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { db } from '../db';
 import { removeAccents } from '../utils/string';
 
-export default function ScannerColumn({ onScan, onSelectProduct, onAddProduct, isActive = true }) {
+export default function ScannerColumn({ onScan, onSelectProduct, onAddProduct, isActive = true, showShortcuts }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const onScanRef = useRef(onScan);
@@ -92,11 +92,28 @@ export default function ScannerColumn({ onScan, onSelectProduct, onAddProduct, i
           <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
             <Search className="text-slate-400 group-focus-within:text-sky-500 transition-colors" size={18} />
           </div>
+          <AnimatePresence>
+            {showShortcuts && (
+              <motion.div initial={{opacity:0, scale:0.8}} animate={{opacity:1, scale:1}} exit={{opacity:0, scale:0.8}} className="absolute inset-y-0 right-12 flex items-center pointer-events-none z-10">
+                <span className="text-[10px] bg-sky-500 text-white px-2 py-0.5 rounded shadow-sm normal-case font-bold tracking-normal flex items-center gap-1">
+                  <Command size={10} />/Ctrl + F
+                </span>
+              </motion.div>
+            )}
+          </AnimatePresence>
           <input 
             id="scanner-search-input"
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && e.target.value.length >= 4) {
+                e.preventDefault();
+                onScanRef.current(e.target.value);
+                setSearchQuery('');
+                e.target.blur();
+              }
+            }}
             className="w-full pl-12 pr-12 py-4 bg-white/80 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80 rounded-2xl text-lg font-bold text-slate-800 dark:text-slate-100 placeholder:text-slate-400 placeholder:text-sm placeholder:font-normal focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500/50 shadow-sm transition-all"
             placeholder="Tìm tên hoặc mã vạch sản phẩm..."
             aria-label="Tìm kiếm sản phẩm"

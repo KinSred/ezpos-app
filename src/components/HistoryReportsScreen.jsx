@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
-import { Calendar, DollarSign, ShoppingBag, Printer, ChevronRight, TrendingUp, BarChart3, Percent, Search, X, ChevronLeft, Trash2, Download } from 'lucide-react';
+import { Calendar, DollarSign, ShoppingBag, Printer, ChevronRight, TrendingUp, BarChart3, Percent, Search, X, ChevronLeft, Trash2, UserPlus } from 'lucide-react';
 import PrintableReceipt from './PrintableReceipt';
 import ReturnOrderModal from './ReturnOrderModal';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell } from 'recharts';
 
 export default function HistoryReportsScreen() {
   const [activeTab, setActiveTab] = useState('history'); // 'history' or 'reports'
@@ -21,6 +21,11 @@ export default function HistoryReportsScreen() {
   // Return order states
   const [showReturnModal, setShowReturnModal] = useState(false);
   const [orderToReturn, setOrderToReturn] = useState(null);
+
+  // Convert to debt states
+  const [showConvertToDebtModal, setShowConvertToDebtModal] = useState(false);
+  const [customerSearchTerm, setCustomerSearchTerm] = useState('');
+  const [selectedCustomerForDebt, setSelectedCustomerForDebt] = useState(null);
 
   // Calendar logic
   const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
@@ -61,6 +66,12 @@ export default function HistoryReportsScreen() {
       return allOrders;
     },
     [searchPhone, searchDate]
+  );
+
+  const customers = useLiveQuery(() => db.customers.toArray()) || [];
+  const filteredCustomers = customers.filter(c => 
+    c.name.toLowerCase().includes(customerSearchTerm.toLowerCase()) || 
+    c.phone.includes(customerSearchTerm)
   );
 
   // Accessibility (A11y): Close details drawer on ESC key
@@ -237,41 +248,55 @@ export default function HistoryReportsScreen() {
     }
   };
 
-  const handleExportCSV = () => {
-    if (!orders || orders.length === 0) {
-      toast.error("Không có dữ liệu để xuất!");
-      return;
-    }
-    const headers = ["Mã HĐ", "Ngày Bán", "Giờ Bán", "Khách Hàng", "SĐT", "Phương Thức", "Tổng Tiền", "Chiết Khấu", "Tiền Khách Đưa", "Tiền Thừa"];
+  const handleConvertToDebt = async () => {
+    if (!selectedCustomerForDebt || !selectedOrder) return;
     
-    const rows = orders.map(order => {
-      const date = new Date(order.timestamp);
-      const dateStr = `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
-      const timeStr = `${date.getHours()}:${date.getMinutes()}`;
+    try {
+      const order = selectedOrder;
+      const customer = selectedCustomerForDebt;
       
-      return [
-        `HD-${order.id}`,
-        dateStr,
-        timeStr,
-        order.customerName || "Khách vãng lai",
-        order.customerPhone || "",
-        order.paymentMethod === 'vietqr' ? "Chuyển khoản QR" : "Tiền mặt",
-        order.total,
-        order.discount || 0,
-        order.cashReceived || 0,
-        order.changeAmount || 0
-      ].map(field => `"${field}"`).join(',');
-    });
+      const previousDebt = customer.debt || 0;
+      const newDebt = previousDebt + order.total;
+      
+      // Cập nhật hóa đơn
+      await db.orders.update(order.id, {
+        paymentStatus: 'credit',
+        paymentMethod: 'credit',
+        customerPhone: customer.phone,
+        customerName: customer.name,
+        customerPreviousDebt: previousDebt,
+        customerRemainingDebt: newDebt,
+        cashReceived: 0,
+        changeAmount: 0,
+      });
 
-    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + [headers.join(','), ...rows].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `BaoCao_EZPOS_${new Date().getTime()}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success("Đã tải báo cáo Excel/CSV!");
+      // Cập nhật công nợ KH
+      await db.customers.update(customer.phone, { debt: newDebt });
+
+      // Lưu lịch sử giao dịch
+      await db.customerTransactions.add({
+        customerPhone: customer.phone,
+        timestamp: order.timestamp,
+        type: 'debt',
+        amount: order.total,
+        remainingDebt: newDebt,
+        orderId: order.id
+      });
+      
+      toast.success("Đã chuyển hóa đơn sang ghi nợ thành công!");
+      
+      // Đóng modal và tải lại hóa đơn
+      setShowConvertToDebtModal(false);
+      setSelectedCustomerForDebt(null);
+      setCustomerSearchTerm('');
+      
+      const updatedOrder = await db.orders.get(order.id);
+      setSelectedOrder(updatedOrder);
+      
+    } catch (err) {
+      console.error(err);
+      toast.error("Lỗi khi chuyển sang ghi nợ.");
+    }
   };
 
   // --- State Management: Loading State ---
@@ -393,43 +418,31 @@ export default function HistoryReportsScreen() {
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Xem lại các hóa đơn đã bán và theo dõi báo cáo doanh thu cửa hàng.</p>
           </div>
 
-          <div className="flex items-center gap-3">
-            {/* Segmented control for tabs */}
-            <div className="flex bg-sky-100/60 dark:bg-sky-950/40 p-1 rounded-xl border border-sky-200/40 dark:border-sky-800/30">
-              <motion.button 
-                whileTap={{ scale: 0.97 }}
-                onClick={() => { setActiveTab('history'); setSelectedOrder(null); }}
-                className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 ${
-                  activeTab === 'history' 
-                    ? 'bg-sky-600 dark:bg-sky-500 text-white shadow-sm' 
-                    : 'text-slate-600 dark:text-slate-300 hover:text-sky-600 dark:hover:text-sky-300 hover:bg-white/40 dark:hover:bg-white/5'
-                }`}
-                aria-label="Xem Tab Lịch sử hóa đơn"
-              >
-                Lịch sử hóa đơn
-              </motion.button>
-              <motion.button 
-                whileTap={{ scale: 0.97 }}
-                onClick={() => { setActiveTab('reports'); setSelectedOrder(null); }}
-                className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 ${
-                  activeTab === 'reports' 
-                    ? 'bg-sky-600 dark:bg-sky-500 text-white shadow-sm' 
-                    : 'text-slate-600 dark:text-slate-300 hover:text-sky-600 dark:hover:text-sky-300 hover:bg-white/40 dark:hover:bg-white/5'
-                }`}
-                aria-label="Xem Tab Báo cáo doanh số"
-              >
-                Báo cáo doanh số
-              </motion.button>
-            </div>
-            
-            {/* Nút Xuất Báo Cáo */}
-            <motion.button
-              whileTap={{ scale: 0.95 }}
-              onClick={handleExportCSV}
-              className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-sm font-bold shadow-sm transition-all focus:outline-none"
+          {/* Segmented control for tabs */}
+          <div className="flex bg-sky-100/60 dark:bg-sky-950/40 p-1 rounded-xl w-fit border border-sky-200/40 dark:border-sky-800/30">
+            <motion.button 
+              whileTap={{ scale: 0.97 }}
+              onClick={() => { setActiveTab('history'); setSelectedOrder(null); }}
+              className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 ${
+                activeTab === 'history' 
+                  ? 'bg-sky-600 dark:bg-sky-500 text-white shadow-sm' 
+                  : 'text-slate-600 dark:text-slate-300 hover:text-sky-600 dark:hover:text-sky-300 hover:bg-white/40 dark:hover:bg-white/5'
+              }`}
+              aria-label="Xem Tab Lịch sử hóa đơn"
             >
-              <Download size={16} />
-              <span className="hidden sm:inline">Xuất CSV</span>
+              Lịch sử hóa đơn
+            </motion.button>
+            <motion.button 
+              whileTap={{ scale: 0.97 }}
+              onClick={() => { setActiveTab('reports'); setSelectedOrder(null); }}
+              className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 ${
+                activeTab === 'reports' 
+                  ? 'bg-sky-600 dark:bg-sky-500 text-white shadow-sm' 
+                  : 'text-slate-600 dark:text-slate-300 hover:text-sky-600 dark:hover:text-sky-300 hover:bg-white/40 dark:hover:bg-white/5'
+              }`}
+              aria-label="Xem Tab Báo cáo doanh số"
+            >
+              Báo cáo doanh số
             </motion.button>
           </div>
         </div>
@@ -732,22 +745,32 @@ export default function HistoryReportsScreen() {
                   </div>
                   
                   {/* Sticky Footer với nút In hóa đơn và Xóa hóa đơn */}
-                  <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-black/5 dark:border-white/5 flex flex-col sm:flex-row gap-3 flex-shrink-0">
+                  <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-black/5 dark:border-white/5 flex flex-col gap-3 flex-shrink-0">
                     <motion.button
                       whileTap={{ scale: 0.95 }}
                       onClick={() => handlePrint(selectedOrder)}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white text-xs font-bold rounded-xl shadow-md transition-all focus:outline-none"
+                      className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white text-xs font-bold rounded-xl shadow-md transition-all focus:outline-none"
                     >
                       <Printer size={14} />
                       In hóa đơn
                     </motion.button>
-                    <div className="flex flex-1 gap-2">
+                    <div className="flex gap-2 flex-wrap sm:flex-nowrap">
+                      {selectedOrder.paymentStatus !== 'credit' && (
+                        <motion.button
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => setShowConvertToDebtModal(true)}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-500 hover:text-white border border-indigo-200/50 text-xs font-bold rounded-xl shadow-sm transition-all focus:outline-none"
+                        >
+                          <UserPlus size={14} />
+                          Ghi nợ
+                        </motion.button>
+                      )}
                       <motion.button
                         whileTap={{ scale: 0.95 }}
                         onClick={() => { setOrderToReturn(selectedOrder); setShowReturnModal(true); }}
                         className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-amber-50 text-amber-600 hover:bg-amber-500 hover:text-white border border-amber-200/50 text-xs font-bold rounded-xl shadow-sm transition-all focus:outline-none"
                       >
-                        Trả một phần
+                        Trả 1 phần
                       </motion.button>
                       <motion.button
                         whileTap={{ scale: 0.95 }}
@@ -915,61 +938,30 @@ export default function HistoryReportsScreen() {
             </div>
 
             {/* Top Products Leaderboard */}
-            <div className="glass-card rounded-3xl p-6 flex flex-col transition-colors duration-500 mt-6 min-h-[350px]">
-              <div className="mb-4">
-                <h3 className="text-base font-bold text-sky-950 dark:text-white mb-1">Top 5 Sản phẩm bán chạy nhất</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Xếp hạng sản phẩm theo số lượng bán ra trong tháng.</p>
+            <div className="glass-card rounded-3xl p-6 flex flex-col transition-colors duration-500 mt-6">
+              <div>
+                <h3 className="text-base font-bold text-sky-950 dark:text-white mb-1">Sản phẩm bán chạy nhất</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mb-5">Xếp hạng sản phẩm theo số lượng bán ra.</p>
               </div>
 
-              <div className="flex-1 w-full min-h-[250px]">
+              <div className="flex flex-col sm:flex-row gap-4 divide-y sm:divide-y-0 sm:divide-x divide-black/5 dark:divide-white/5">
                 {topProducts.length === 0 ? (
-                  <div className="text-center text-sm text-slate-500 dark:text-slate-400 flex items-center justify-center h-full">Chưa có dữ liệu bán hàng.</div>
+                  <div className="text-center text-xs text-slate-500 dark:text-slate-400 py-4 w-full">Chưa có dữ liệu bán hàng.</div>
                 ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={topProducts}
-                      layout="vertical"
-                      margin={{ top: 5, right: 30, left: 60, bottom: 5 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#E2E8F0" strokeOpacity={0.4} className="dark:stroke-slate-800/40" />
-                      <XAxis type="number" hide />
-                      <YAxis 
-                        dataKey="name" 
-                        type="category" 
-                        axisLine={false} 
-                        tickLine={false} 
-                        tick={{ fill: '#64748B', fontSize: 11, fontWeight: 'bold' }} 
-                        width={120}
-                      />
-                      <RechartsTooltip
-                        cursor={{ fill: 'rgba(14, 165, 233, 0.05)' }}
-                        contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.95)', border: '1px solid rgba(0,0,0,0.05)', borderRadius: '16px', color: '#0F172A', backdropFilter: 'blur(12px)', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}
-                        formatter={(value) => [`${value} sản phẩm`, 'Đã bán']}
-                        labelStyle={{ fontWeight: 'black', color: '#0F172A', fontSize: '13px' }}
-                      />
-                      <Bar 
-                        dataKey="qty" 
-                        fill="url(#barGrad)" 
-                        radius={[0, 8, 8, 0]}
-                        barSize={32}
-                        label={{ position: 'right', fill: '#0EA5E9', fontWeight: 'bold', fontSize: 12 }}
-                      >
-                        {topProducts.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={index === 0 ? 'url(#topBarGrad)' : 'url(#barGrad)'} />
-                        ))}
-                      </Bar>
-                      <defs>
-                        <linearGradient id="barGrad" x1="0" y1="0" x2="1" y2="0">
-                          <stop offset="0%" stopColor="#38BDF8" />
-                          <stop offset="100%" stopColor="#0EA5E9" />
-                        </linearGradient>
-                        <linearGradient id="topBarGrad" x1="0" y1="0" x2="1" y2="0">
-                          <stop offset="0%" stopColor="#F59E0B" />
-                          <stop offset="100%" stopColor="#D97706" />
-                        </linearGradient>
-                      </defs>
-                    </BarChart>
-                  </ResponsiveContainer>
+                  topProducts.map((product, idx) => (
+                    <div key={product.id} className="flex-1 flex flex-col items-center pt-3 sm:pt-0 sm:px-4 first:pt-0 first:px-0 first:pl-0 last:pr-0">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs mb-2 ${
+                        idx === 0 ? 'bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400' :
+                        idx === 1 ? 'bg-slate-100 text-slate-600 dark:bg-slate-500/20 dark:text-slate-400' :
+                        idx === 2 ? 'bg-orange-100 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400' :
+                        'bg-black/5 dark:bg-white/5 text-slate-500 dark:text-slate-400'
+                      }`}>
+                        #{idx + 1}
+                      </div>
+                      <span className="font-bold text-slate-900 dark:text-slate-100 text-sm text-center line-clamp-1 mb-1" title={product.name}>{product.name}</span>
+                      <span className="text-xs text-slate-500 dark:text-slate-400">Đã bán: <strong className="text-sky-600 dark:text-sky-400">{product.qty}</strong></span>
+                    </div>
+                  ))
                 )}
               </div>
             </div>
@@ -1012,6 +1004,94 @@ export default function HistoryReportsScreen() {
                   className="flex-1 py-2.5 px-4 rounded-xl font-bold text-white bg-rose-500 hover:bg-rose-600 transition-colors shadow-lg shadow-rose-500/30 focus:outline-none"
                 >
                   Xác nhận Xóa
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showConvertToDebtModal && (
+          <div 
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4"
+            role="dialog"
+            aria-modal="true"
+          >
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col max-h-[85vh]"
+            >
+              <div className="p-5 pb-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900">
+                <h3 className="text-lg font-extrabold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  <UserPlus className="text-indigo-500" size={20} />
+                  Chuyển Sang Ghi Nợ
+                </h3>
+                <button 
+                  onClick={() => { setShowConvertToDebtModal(false); setSelectedCustomerForDebt(null); }}
+                  className="p-1.5 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+              
+              <div className="p-5 overflow-y-auto flex-1 bg-white dark:bg-slate-950/30">
+                <p className="text-sm text-slate-600 dark:text-slate-400 mb-4 leading-relaxed">
+                  Chọn khách hàng để đưa hóa đơn <strong className="text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 px-1.5 rounded">HD-{selectedOrder?.id}</strong> trị giá <strong className="text-rose-600 dark:text-rose-400 font-black">{selectedOrder && formatPrice(selectedOrder.total)}</strong> vào sổ nợ.
+                </p>
+                
+                <div className="relative mb-4">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                  <input
+                    type="text"
+                    placeholder="Tìm tên hoặc SĐT khách hàng..."
+                    value={customerSearchTerm}
+                    onChange={(e) => setCustomerSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-slate-800 dark:text-white"
+                  />
+                </div>
+
+                <div className="space-y-2 max-h-[30vh] overflow-y-auto pr-2 custom-scrollbar">
+                  {filteredCustomers.length === 0 ? (
+                    <div className="text-center py-6 text-sm text-slate-500 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
+                      Không tìm thấy khách hàng.
+                    </div>
+                  ) : (
+                    filteredCustomers.map(cust => (
+                      <div 
+                        key={cust.phone}
+                        onClick={() => setSelectedCustomerForDebt(cust)}
+                        className={`p-3 rounded-xl border cursor-pointer transition-all duration-200 flex items-center justify-between group ${selectedCustomerForDebt?.phone === cust.phone ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-500/10 shadow-sm' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-indigo-300 hover:bg-slate-50 dark:hover:bg-slate-800/80'}`}
+                      >
+                        <div>
+                          <div className={`font-bold text-sm ${selectedCustomerForDebt?.phone === cust.phone ? 'text-indigo-700 dark:text-indigo-400' : 'text-slate-800 dark:text-slate-100'}`}>{cust.name}</div>
+                          <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{cust.phone}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-[10px] uppercase tracking-wider font-bold text-slate-400">Dư Nợ Hiện Tại</div>
+                          <div className={`font-extrabold text-sm ${cust.debt > 0 ? 'text-rose-500 dark:text-rose-400' : 'text-emerald-500 dark:text-emerald-400'}`}>{formatPrice(cust.debt || 0)}</div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+              
+              <div className="p-4 bg-slate-50 dark:bg-slate-900/80 flex gap-3 border-t border-slate-100 dark:border-slate-800/80">
+                <button 
+                  onClick={() => { setShowConvertToDebtModal(false); setSelectedCustomerForDebt(null); }}
+                  className="flex-1 py-3 px-4 rounded-xl font-bold text-slate-600 dark:text-slate-350 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors focus:outline-none"
+                >
+                  Hủy bỏ
+                </button>
+                <button 
+                  onClick={handleConvertToDebt}
+                  disabled={!selectedCustomerForDebt}
+                  className={`flex-1 py-3 px-4 rounded-xl font-bold text-white transition-all focus:outline-none ${!selectedCustomerForDebt ? 'bg-slate-300 dark:bg-slate-700 text-slate-500 dark:text-slate-400 cursor-not-allowed' : 'bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 shadow-lg shadow-indigo-500/30'}`}
+                >
+                  Xác nhận Ghi Nợ
                 </button>
               </div>
             </motion.div>

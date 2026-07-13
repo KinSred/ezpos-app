@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { db } from '../db';
-import { Settings, Save, CreditCard, Building2, User, Download, Upload, Cloud, ShieldAlert, Key, Copy, Check, Receipt, Battery, ChevronDown, DownloadCloud, RefreshCw, Info } from 'lucide-react';
+import { Settings, Save, CreditCard, Building2, User, Download, Upload, Cloud, ShieldAlert, Key, Copy, Check, Receipt, Battery, ChevronDown, DownloadCloud, RefreshCw, Info, Keyboard, Command, ArrowLeft, ArrowRight, CornerDownLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { generateBackupData, restoreBackupData, syncToCloud, fetchFromCloud } from '../utils/backup';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -642,7 +642,7 @@ export default function SettingsScreen() {
                   Thông Tin Cập Nhật
                 </h2>
                 <p className="text-xs text-slate-400 dark:text-slate-550">
-                  Phiên bản hiện tại: <strong className="text-sky-600 dark:text-sky-400 text-sm">v1.0.0</strong>
+                  Phiên bản hiện tại: <strong className="text-sky-600 dark:text-sky-400 text-sm">v1.0.1</strong>
                 </p>
               </div>
 
@@ -725,6 +725,78 @@ export default function SettingsScreen() {
                 )}
               </div>
             </div>
+
+            {/* Mục Hướng dẫn Phím Tắt */}
+            <div className="glass-card rounded-3xl p-6 border border-slate-200/40 dark:border-slate-800/40 shadow-sm flex flex-col gap-5 transition-colors duration-200">
+              <div>
+                <h2 className="text-lg font-extrabold text-slate-850 dark:text-white mb-1 flex items-center gap-2">
+                  <Keyboard className="text-purple-600 dark:text-purple-400" size={20} />
+                  Hướng Dẫn Phím Tắt
+                </h2>
+                <p className="text-xs text-slate-400 dark:text-slate-550">
+                  Tối ưu hóa thao tác để bán hàng nhanh hơn bằng bàn phím.
+                </p>
+              </div>
+
+              <div className="bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-5 border border-slate-100 dark:border-slate-800/60 overflow-hidden">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Cột 1 */}
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center border-b border-slate-200/50 dark:border-slate-800/50 pb-2">
+                      <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">Thanh Toán</span>
+                      <kbd className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-700 dark:text-slate-300 shadow-sm">Enter</kbd>
+                    </div>
+                    <div className="flex justify-between items-center border-b border-slate-200/50 dark:border-slate-800/50 pb-2">
+                      <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">Tìm Sản Phẩm</span>
+                      <kbd className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-700 dark:text-slate-300 shadow-sm flex items-center gap-1"><Command size={12} />/Ctrl + F</kbd>
+                    </div>
+                    <div className="flex justify-between items-center border-b border-slate-200/50 dark:border-slate-800/50 pb-2">
+                      <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">Tìm Khách Hàng</span>
+                      <kbd className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-700 dark:text-slate-300 shadow-sm flex items-center gap-1"><Command size={12} />/Ctrl + U</kbd>
+                    </div>
+                    <div className="flex justify-between items-center border-b border-slate-200/50 dark:border-slate-800/50 pb-2">
+                      <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">Chuyển Giá Sỉ/Lẻ</span>
+                      <kbd className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-700 dark:text-slate-300 shadow-sm flex items-center gap-1"><Command size={12} />/Ctrl + D</kbd>
+                    </div>
+                    <div className="flex justify-between items-center border-b border-slate-200/50 dark:border-slate-800/50 pb-2">
+                      <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">Nhập Giảm Giá</span>
+                      <kbd className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-700 dark:text-slate-300 shadow-sm flex items-center gap-1"><Command size={12} />/Ctrl + G</kbd>
+                    </div>
+                    <div className="flex justify-between items-center border-b border-slate-200/50 dark:border-slate-800/50 pb-2">
+                      <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">Đổi Hình Thức Thanh Toán</span>
+                      <kbd className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-700 dark:text-slate-300 shadow-sm flex items-center gap-1"><ArrowLeft size={12} /> / <ArrowRight size={12} /></kbd>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">Điền Tiền Nhanh (VD: 50k)</span>
+                      <kbd className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-700 dark:text-slate-300 shadow-sm flex items-center gap-1">Gõ 50 <CornerDownLeft size={12} /></kbd>
+                    </div>
+                  </div>
+                  {/* Cột 2 */}
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center border-b border-slate-200/50 dark:border-slate-800/50 pb-2">
+                      <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">Thêm Giỏ Hàng Mới</span>
+                      <kbd className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-700 dark:text-slate-300 shadow-sm flex items-center gap-1"><Command size={12} />/Ctrl + T</kbd>
+                    </div>
+                    <div className="flex justify-between items-center border-b border-slate-200/50 dark:border-slate-800/50 pb-2">
+                      <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">Chuyển Giỏ Hàng</span>
+                      <div className="flex gap-1">
+                        <kbd className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-700 dark:text-slate-300 shadow-sm flex items-center gap-1"><Command size={12} />/Ctrl + [</kbd>
+                        <kbd className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-700 dark:text-slate-300 shadow-sm">]</kbd>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center border-b border-slate-200/50 dark:border-slate-800/50 pb-2">
+                      <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">Đóng Hộp Thoại</span>
+                      <kbd className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-700 dark:text-slate-300 shadow-sm">ESC</kbd>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">Chỉnh Số Lượng SP</span>
+                      <kbd className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-700 dark:text-slate-300 shadow-sm">↑ ↓</kbd>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
       </div>

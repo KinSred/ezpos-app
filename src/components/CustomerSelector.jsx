@@ -39,7 +39,8 @@ export default function CustomerSelector({ customer, setCustomer, isCredit }) {
       }
     };
     lookupCustomer();
-  }, [phoneInput, setCustomer]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phoneInput]);
 
   const handleRegisterCustomer = async () => {
     if (!phoneInput || !newCustomerName.trim()) {

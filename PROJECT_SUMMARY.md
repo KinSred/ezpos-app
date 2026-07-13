@@ -1,5 +1,5 @@
 # EZPOS - Project Summary & Status
-*Ngày cập nhật gần nhất: 11/07/2026*
+*Ngày cập nhật gần nhất: 12/07/2026*
 
 ## 1. Giới thiệu dự án
 Dự án **EZPOS** là một ứng dụng Desktop (Point of Sale - POS) offline-first chạy độc lập trên máy tính (Windows/macOS) thông qua **Electron Framework**. Ứng dụng được xây dựng bằng React, Vite, TailwindCSS, và sử dụng IndexedDB (thông qua thư viện Dexie) để lưu trữ dữ liệu trực tiếp dưới ổ cứng của người dùng, mang lại trải nghiệm mượt mà, độc lập hoàn toàn với internet.
@@ -16,7 +16,7 @@ Dự án **EZPOS** là một ứng dụng Desktop (Point of Sale - POS) offline-
 - Quét mã vạch tự động thêm vào giỏ hàng. Hỗ trợ đa dạng đơn vị tính thực tế: Lẻ, Lốc (Mid), Sỉ (Wholesale).
 - Hiển thị cảnh báo số lượng tồn kho thấp trực tiếp trên giỏ hàng.
 - **Tính năng Khuyến mãi thông minh:** Tự động phát hiện và trừ tiền khi giỏ hàng đạt điều kiện "Mua X tặng Y". Trợ lý gợi ý (Upsell hint) ngay dưới sản phẩm *"Mua thêm X để được tặng Y"*.
-- **Chiết khấu riêng lẻ từng mặt hàng:** Cho phép nhập mức giảm giá riêng cho từng sản phẩm trực tiếp từ giỏ hàng hoặc modal thanh toán. Hộp nhập thiết kế rộng rãi có dấu phẩy phân tách nghìn và chặn phím Enter kích hoạt thanh toán ngoài ý muốn.
+- **Chiết khấu riêng lẻ từng mặt hàng:** Cho phép nhập mức giảm giá riêng cho từng sản phẩm trực tiếp từ giỏ hàng hoặc modal thanh toán. Hỗ trợ nhập các mệnh giá nhỏ lẻ (như 500đ) mà không bị tự động làm tròn. Hộp nhập thiết kế rộng rãi có dấu phẩy phân tách nghìn và chặn phím Enter kích hoạt thanh toán ngoài ý muốn.
 - Modal Thanh toán trực quan:
   - **Tiền mặt:** Có máy tính tiền thối tự động, phím tắt mệnh giá tiền nhanh.
   - **Chuyển khoản (VietQR):** Quét mã QR, tự động dò tìm giao dịch qua SePay API để tự động xác nhận đã nhận tiền (không cần check app ngân hàng).
@@ -42,6 +42,7 @@ Dự án **EZPOS** là một ứng dụng Desktop (Point of Sale - POS) offline-
 ### 📊 Lịch Sử & Báo Cáo (HistoryReportsScreen)
 - Xem lại toàn bộ hóa đơn đã bán, cho phép in lại hóa đơn bất kỳ lúc nào.
 - **Xóa hóa đơn hoàn trả kho & công nợ:** Cho phép xóa đơn hàng cũ trong lịch sử, tự động hoàn trả số lượng sản phẩm vào tồn kho theo đúng tỷ lệ quy đổi và trừ nợ lũy tiến tương ứng cho khách hàng nếu là đơn ghi nợ.
+- **Chuyển hóa đơn sang Ghi nợ:** Cho phép linh hoạt chuyển đổi hóa đơn đã thanh toán (Tiền mặt/QR/Chuyển khoản) sang Ghi nợ, hệ thống tự động trừ tiền mặt thu được và cộng dồn nợ vào sổ công nợ của khách hàng.
 - Bộ lọc theo thời gian (Hôm nay, 7 ngày, 30 ngày, Tùy chỉnh).
 - Xem biểu đồ doanh thu và tính toán lợi nhuận tự động.
 - Tính năng **Giao Ca:** Chốt doanh thu cuối ngày.
@@ -69,6 +70,7 @@ Hệ thống được thiết kế theo phong cách SaaS tối giản cao cấp 
 - **In Hóa Đơn 2 Liên Chuyên Biệt (PDF Spooler Độc Lập & Đa Nền Tảng):**
   - **Hóa đơn Bán lẻ:** In 1 bản tiêu chuẩn với các thông tin thanh toán tiền mặt/chuyển khoản thông thường.
   - **Hóa đơn Ghi nợ 2 Liên:** Tự động in đồng thời **Liên 1 (Giao khách hàng)** và **Liên 2 (Cửa hàng lưu)** cách nhau bởi đường cắt kéo nét đứt `✂ - - - - - CẮT TẠI ĐÂY - - - - - ✂`.
+  - **In Hàng Loạt Từ Sổ Nợ:** Khi in công nợ hàng loạt từ bên trong Sổ nợ, hệ thống sẽ rút gọn thành 1 liên duy nhất và ẩn phần ký tên xác nhận để tối ưu giấy in.
   - **Thống kê nợ trên bill in:** Hiển thị rõ số dư nợ cũ, nợ phát sinh đơn này, tổng nợ hiện tại và 2 khung ký nhận nợ cho Khách hàng và Người lập phiếu.
   - **Kiến trúc in ấn đa nền tảng:**
     * **Trên Windows:** Đẩy PDF trực tiếp vào Spooler qua SumatraPDF (thư viện `pdf-to-printer`) bằng tùy chọn `scale: "noscale"`.
@@ -93,15 +95,6 @@ Hệ thống được thiết kế theo phong cách SaaS tối giản cao cấp 
 - **Quét mã vạch trực quan**: Thiết kế máy quét với vòng tròn radar đồng tâm đứt nét và **đường laser neon quét dọc tự động** trượt lên xuống tạo cảm giác hiện đại.
 - **Segmented Control độc lập**: Bộ chuyển đổi Đơn vị tính (Lẻ/Lốc/Sỉ) trong giỏ hàng sử dụng `layoutId` độc lập cho từng sản phẩm.
 - **Bảng dữ liệu tối giản (Stripe Style)**: Viền mỏng, khoảng cách thoáng đãng, các badge tồn kho màu sắc nổi bật với hoạt họa nhấp nháy báo hết hàng.
-- **Cập nhật Tự động Đa Nền Tảng (Auto-Update qua GitHub Releases)**:
-  * Tích hợp `electron-updater` liên kết trực tiếp với GitHub Releases.
-  * Hỗ trợ tự động dò bản mới, tải ngầm (có thanh tiến trình phần trăm trên UI Settings) và tự động cài đặt cho cả Windows (`.exe`) và macOS (`.dmg`).
-  * Khắc phục lỗi CommonJS/ESM khi đóng gói bằng cách import theo chuẩn: `import pkg from 'electron-updater'; const { autoUpdater } = pkg;`.
-- **Báo cáo Phân tích Chuyên sâu (Advanced Dashboard & Export)**:
-  * Trang lịch sử được tái thiết kế thành Dashboard hiện đại với **Biểu đồ Tròn (PieChart)** hiển thị trực quan tỉ trọng thanh toán (Tiền mặt/Chuyển khoản).
-  * Xếp hạng Top 5 Sản phẩm bán chạy bằng **Biểu đồ Cột ngang (BarChart)** với hiệu ứng gradient vàng đồng (Amber) tôn vinh sản phẩm "gánh doanh thu".
-  * Tính năng **Xuất dữ liệu (Export to CSV/Excel)** chỉ với một chạm, hỗ trợ truy xuất lập tức toàn bộ lịch sử bán hàng và tính toán sổ sách kế toán.
-
 
 ## 6. Hướng dẫn Resume (Dành cho AI)
 Khi người dùng mở lại dự án và yêu cầu bạn đọc file này:
@@ -114,4 +107,4 @@ Khi người dùng mở lại dự án và yêu cầu bạn đọc file này:
 7. Đảm bảo các định dạng hình học cốt lõi của hóa đơn (`.print-only` padding, width) luôn được định nghĩa ở phạm vi toàn cục (global) ngoài media query để bảo toàn tính chính xác của thuật toán đo chiều cao tự động chém giấy.
 
 ---
-*Dự án đã sẵn sàng cho môi trường Production và đã được đóng gói thành công thành file cài đặt Windows (.exe) độc lập trong thư mục `release/`.*
+*Dự án đã sẵn sàng cho môi trường Production và đã được đóng gói thành công thành file cài đặt Windows (.exe) và macOS (.dmg) độc lập trong thư mục `release/`.*

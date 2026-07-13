@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingBag, Receipt, QrCode, Coins, CheckCircle2, X, AlertTriangle, CreditCard, Trash2, Edit2, Calendar } from 'lucide-react';
+import { ShoppingBag, Receipt, QrCode, Coins, CheckCircle2, X, AlertTriangle, CreditCard, Trash2, Edit2, Calendar, Command, ArrowLeft, ArrowRight, CornerDownLeft } from 'lucide-react';
 import { db } from '../db';
 import toast from 'react-hot-toast';
 import CustomerSelector from './CustomerSelector';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 
 export default function CheckoutConfirmationModal({
   cartItems,
@@ -26,15 +28,13 @@ export default function CheckoutConfirmationModal({
   totalTaxAmount,
   onRemoveItem,
   onUpdateCustomPrice,
-  mode
+  mode,
+  showShortcuts
 }) {
   const [paymentMethod, setPaymentMethod] = useState(mode === 'wholesale' ? 'credit' : (isCredit ? 'credit' : 'cash')); // 'cash' or 'vietqr' or 'credit'
   const [cashReceived, setCashReceived] = useState('');
   const [bankInfo, setBankInfo] = useState(null);
-  const [orderDate, setOrderDate] = useState(() => {
-    const tzoffset = (new Date()).getTimezoneOffset() * 60000;
-    return (new Date(Date.now() - tzoffset)).toISOString().slice(0, 16);
-  });
+  const [orderDate, setOrderDate] = useState(new Date());
   const [qrUrl, setQrUrl] = useState('');
   const [showFullQR, setShowFullQR] = useState(false);
   
@@ -53,9 +53,6 @@ export default function CheckoutConfirmationModal({
     const clean = priceStr.replace(/[^0-9]/g, '');
     const val = parseInt(clean, 10);
     if (isNaN(val)) return '';
-    if (val > 0 && val < 1000) {
-      return (val * 1000).toString();
-    }
     return val.toString();
   };
 
@@ -177,13 +174,62 @@ export default function CheckoutConfirmationModal({
       if (e.key === 'Escape') {
         onClose();
       }
-      if (e.key === 'F11' || e.key === 'F9' || e.key === 'Enter') {
+
+      const isCmdOrCtrl = e.metaKey || e.ctrlKey;
+
+      // Giảm giá (Cmd+G)
+      if (isCmdOrCtrl && e.key.toLowerCase() === 'g') {
+        e.preventDefault();
+        const discountInput = document.getElementById('checkout-discount-input');
+        if (discountInput) discountInput.focus();
+        return;
+      }
+
+      // Đổi phương thức thanh toán (Trái/Phải nếu ko trong input, hoặc Cmd+Trái/Phải)
+      if ((isCmdOrCtrl && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) || 
+          (!isCmdOrCtrl && (e.key === 'ArrowLeft' || e.key === 'ArrowRight') && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA')) {
+        e.preventDefault();
+        const methods = ['cash', 'vietqr', 'split', 'credit'];
+        const currentIdx = methods.indexOf(paymentMethod);
+        const nextIdx = e.key === 'ArrowRight' ? (currentIdx + 1) % methods.length : (currentIdx - 1 + methods.length) % methods.length;
+        const nextMethod = methods[nextIdx];
+        setPaymentMethod(nextMethod);
+        if (setIsCredit) setIsCredit(nextMethod === 'credit');
+        return;
+      }
+
+      // Gợi ý tiền khách đưa (Cmd + 1..5)
+      if (isCmdOrCtrl && ['1', '2', '3', '4', '5'].includes(e.key)) {
+        e.preventDefault();
+        if (paymentMethod !== 'cash' && paymentMethod !== 'split') {
+          setPaymentMethod('cash');
+          if (setIsCredit) setIsCredit(false);
+        }
+        const quickOptions = [50000, 100000, 200000, 500000, finalAmount];
+        const val = quickOptions[parseInt(e.key) - 1];
+        setCashReceived(new Intl.NumberFormat('en-US').format(val));
+        return;
+      }
+
+      if (e.key === 'F11' || e.key === 'F9' || (isCmdOrCtrl && e.key === 'Enter')) {
         e.preventDefault();
         handleSubmit();
+      } else if (e.key === 'Enter') {
+        // Chỉ submit nếu đang ở input tiền mặt, hoặc không focus vào input/textarea nào cả
+        if (
+          e.target === cashInputRef.current ||
+          (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA')
+        ) {
+          e.preventDefault();
+          handleSubmit();
+        }
       }
     };
+
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onClose, paymentMethod, cashReceived, finalAmount, customer, isCredit]);
 
@@ -220,7 +266,9 @@ export default function CheckoutConfirmationModal({
 
     if (paymentMethod === 'cash') {
       const cleanCash = cashReceived ? String(cashReceived).replace(/,/g, '') : '';
-      const received = cleanCash ? parseFloat(cleanCash) : finalAmount;
+      let received = cleanCash ? parseFloat(cleanCash) : finalAmount;
+      if (received > 0 && received < 1000) received = received * 1000;
+      
       if (received < finalAmount) {
         toast.error("Số tiền khách đưa chưa đủ!");
         return;
@@ -228,7 +276,9 @@ export default function CheckoutConfirmationModal({
       onConfirm(paymentMethod, received, received - finalAmount, orderDate);
     } else if (paymentMethod === 'split') {
       const cleanCash = cashReceived ? String(cashReceived).replace(/,/g, '') : '';
-      const receivedCash = cleanCash ? parseFloat(cleanCash) : 0;
+      let receivedCash = cleanCash ? parseFloat(cleanCash) : 0;
+      if (receivedCash > 0 && receivedCash < 1000) receivedCash = receivedCash * 1000;
+
       if (receivedCash >= finalAmount) {
          // It's effectively just cash
          onConfirm('cash', receivedCash, receivedCash - finalAmount, orderDate);
@@ -261,12 +311,6 @@ export default function CheckoutConfirmationModal({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 30 }}
         transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            e.preventDefault();
-            handleSubmit();
-          }
-        }}
         className="bg-white dark:bg-slate-900 rounded-[2rem] shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col border border-slate-200/50 dark:border-slate-800/50 transition-colors duration-300"
       >
         {/* Header */}
@@ -473,22 +517,52 @@ export default function CheckoutConfirmationModal({
                 </div>
               )}
               
-              <div className="mb-4 bg-white/40 dark:bg-slate-900/40 rounded-2xl p-3 border border-slate-200/50 dark:border-slate-800/50 flex flex-col gap-2">
-                <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                  <Calendar size={14} className="text-sky-500" /> Ngày / Thời gian tạo đơn
-                </label>
-                <input 
-                  type="datetime-local" 
-                  value={orderDate}
-                  onChange={(e) => setOrderDate(e.target.value)}
-                  className="w-full px-3 py-2 bg-white/60 dark:bg-slate-900/60 border border-slate-200/50 dark:border-slate-800/50 rounded-xl text-sm font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all"
-                  title="Có thể lùi ngày tạo đơn nếu bạn quên xuất hóa đơn"
-                />
+              <div className="mb-4 group bg-gradient-to-br from-white/80 to-white/40 dark:from-slate-800/80 dark:to-slate-900/40 backdrop-blur-xl rounded-2xl p-4 border border-white/60 dark:border-slate-700/50 shadow-sm hover:shadow-md transition-all duration-300 relative">
+                {/* Decorative background element wrapper */}
+                <div className="absolute inset-0 overflow-hidden rounded-2xl pointer-events-none">
+                  <div className="absolute -right-6 -top-6 w-24 h-24 bg-sky-500/10 dark:bg-sky-400/5 rounded-full blur-2xl group-hover:bg-sky-500/20 transition-colors duration-500"></div>
+                </div>
+                
+                <div className="flex items-center justify-between mb-2.5 relative z-10">
+                  <label className="text-[11px] font-extrabold text-slate-600 dark:text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                    <div className="bg-sky-100 dark:bg-sky-500/20 p-1.5 rounded-lg text-sky-600 dark:text-sky-400 shadow-sm">
+                      <Calendar size={14} strokeWidth={2.5} />
+                    </div>
+                    Thời gian tạo đơn
+                  </label>
+                  <span className="text-[10px] text-sky-600 dark:text-sky-400 font-bold px-2.5 py-1 bg-sky-50 dark:bg-sky-500/10 rounded-lg border border-sky-100/50 dark:border-sky-500/20">
+                    Tuỳ chỉnh
+                  </span>
+                </div>
+                <div className="relative z-10 group/input datepicker-wrapper">
+                  <DatePicker
+                    selected={orderDate}
+                    onChange={(date) => setOrderDate(date)}
+                    showTimeSelect
+                    timeFormat="HH:mm"
+                    timeIntervals={15}
+                    dateFormat="dd/MM/yyyy, HH:mm"
+                    className="w-full pl-4 pr-11 py-3 bg-white/90 dark:bg-slate-950/90 border border-slate-200/80 dark:border-slate-800/80 rounded-xl text-sm font-black text-slate-800 dark:text-slate-100 focus:outline-none focus:border-sky-400 focus:ring-4 focus:ring-sky-400/10 transition-all cursor-pointer shadow-inner hover:border-sky-300 dark:hover:border-sky-700/50"
+                    title="Thay đổi ngày giờ nếu bạn xuất đơn muộn"
+                    popperClassName="custom-datepicker-popper"
+                    portalId="root"
+                  />
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 text-sky-500/70 group-hover/input:text-sky-500 transition-colors pointer-events-none bg-white/90 dark:bg-slate-950/90 pl-1">
+                     <Edit2 size={16} strokeWidth={2.5} />
+                  </div>
+                </div>
               </div>
 
               <div className="mb-4 bg-white/40 dark:bg-slate-900/40 rounded-2xl p-3 border border-slate-200/50 dark:border-slate-800/50">
-                <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
-                  Chiết Khấu / Giảm Giá
+                <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 flex items-center justify-between">
+                  <span>Chiết Khấu / Giảm Giá</span>
+                  <AnimatePresence>
+                    {showShortcuts && (
+                      <motion.span initial={{opacity:0, scale:0.8}} animate={{opacity:1, scale:1}} exit={{opacity:0, scale:0.8}} className="text-[10px] bg-sky-500 text-white px-2 py-0.5 rounded shadow-sm normal-case font-bold tracking-normal flex items-center gap-1">
+                        <Command size={10} />/Ctrl + G
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
                 </h4>
                 <div className="flex gap-2">
                   <div className="flex bg-slate-100 dark:bg-slate-800 rounded-xl p-1 flex-shrink-0">
@@ -519,6 +593,7 @@ export default function CheckoutConfirmationModal({
                     </button>
                   </div>
                   <input 
+                    id="checkout-discount-input"
                     type="text" 
                     value={discount ? new Intl.NumberFormat('en-US').format(discount) : ''}
                     onChange={(e) => {
@@ -539,8 +614,15 @@ export default function CheckoutConfirmationModal({
                 </div>
               </div>
               
-              <h4 className="text-xs font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-3">
-                Hình thức thanh toán
+              <h4 className="text-xs font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-3 flex items-center justify-between">
+                <span>Hình thức thanh toán</span>
+                <AnimatePresence>
+                  {showShortcuts && (
+                    <motion.span initial={{opacity:0, scale:0.8}} animate={{opacity:1, scale:1}} exit={{opacity:0, scale:0.8}} className="text-[10px] bg-sky-500 text-white px-2 py-0.5 rounded shadow-sm normal-case font-bold tracking-normal flex items-center gap-1">
+                      <ArrowLeft size={10} />/<ArrowRight size={10} /> Đổi
+                    </motion.span>
+                  )}
+                </AnimatePresence>
               </h4>
  
               {/* Segmented Control Selector */}
@@ -657,8 +739,15 @@ export default function CheckoutConfirmationModal({
                         className="space-y-4"
                       >
                         <div>
-                          <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200 mb-2 uppercase tracking-wider">
-                            Số Tiền Khách Đưa (VNĐ)
+                          <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200 mb-2 uppercase tracking-wider flex items-center justify-between">
+                            <span>Số Tiền Khách Đưa (VNĐ)</span>
+                            <AnimatePresence>
+                              {showShortcuts && (
+                                <motion.span initial={{opacity:0, scale:0.8}} animate={{opacity:1, scale:1}} exit={{opacity:0, scale:0.8}} className="text-[10px] bg-sky-500 text-white px-2 py-0.5 rounded shadow-sm normal-case font-bold tracking-normal flex items-center gap-1">
+                                  Gõ 50 <CornerDownLeft size={10} /> = 50.000
+                                </motion.span>
+                              )}
+                            </AnimatePresence>
                           </label>
                           <input 
                             ref={cashInputRef}
@@ -670,6 +759,17 @@ export default function CheckoutConfirmationModal({
                               const num = parseInt(cashReceived.replace(/,/g, ''), 10) || 0;
                               if (num > 0 && num < 1000) {
                                 setCashReceived(new Intl.NumberFormat('en-US').format(num * 1000));
+                              }
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                                e.preventDefault();
+                                const methods = ['cash', 'vietqr', 'split', 'credit'];
+                                const currentIdx = methods.indexOf(paymentMethod);
+                                const nextIdx = e.key === 'ArrowRight' ? (currentIdx + 1) % methods.length : (currentIdx - 1 + methods.length) % methods.length;
+                                const nextMethod = methods[nextIdx];
+                                setPaymentMethod(nextMethod);
+                                if (setIsCredit) setIsCredit(nextMethod === 'credit');
                               }
                             }}
                             className="w-full px-4 py-3 bg-sky-50/50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 rounded-xl text-2xl sm:text-3xl font-black text-sky-700 dark:text-sky-400 focus:outline-none focus:bg-white dark:focus:bg-slate-950 focus:border-sky-500 dark:focus:border-sky-500 focus:ring-4 focus:ring-sky-500/20 transition-all font-mono shadow-inner"

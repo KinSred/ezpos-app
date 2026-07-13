@@ -2,13 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { db } from '../db';
 
-export default function PrintableReceipt({ order }) {
+export default function PrintableReceipt({ order, isBatchPrint = false }) {
   const [tx, setTx] = useState(null);
 
   useEffect(() => {
     let active = true;
-    if (order && order.id && order.paymentStatus === 'credit') {
-      db.customerTransactions.where('orderId').equals(order.id).first()
+    if (order && order.timestamp && order.paymentStatus === 'credit') {
+      db.customerTransactions.where('timestamp').equals(order.timestamp).first()
         .then(foundTx => {
           if (active) setTx(foundTx);
         })
@@ -203,7 +203,7 @@ export default function PrintableReceipt({ order }) {
 
         {/* Footer message / Signatures */}
         <div className="text-center mt-5 text-[12.5px] space-y-1.5">
-          {isCredit ? (
+          {(isCredit && !isBatchPrint) ? (
             <div className="pt-2">
               <p className="font-bold italic text-[11.5px] text-center mb-6">"Khách hàng đồng ý nhận nợ & ký xác nhận bên dưới"</p>
               <div className="flex justify-between text-center font-bold px-1 pt-1 text-[11.5px] leading-tight">
@@ -233,7 +233,7 @@ export default function PrintableReceipt({ order }) {
 
   return createPortal(
     <div className="print-only bg-white text-black py-2">
-      {isCredit ? (
+      {(isCredit && !isBatchPrint) ? (
         <div className="flex flex-col">
           <div style={{ pageBreakAfter: 'always' }}>
             {renderSingleReceipt("LIÊN 1: GIAO KHÁCH HÀNG")}
