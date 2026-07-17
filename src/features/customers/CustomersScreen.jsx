@@ -6,6 +6,7 @@ import HistoryModal from './components/HistoryModal';
 import PaymentModal from './components/PaymentModal';
 import EditCustomerModal from './components/EditCustomerModal';
 import AddCustomerModal from './components/AddCustomerModal';
+import PrintableReceipt from '../pos/components/PrintableReceipt';
 import { motion } from 'framer-motion';
 import { db } from '../../db';
 import toast from 'react-hot-toast';

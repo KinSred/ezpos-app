@@ -86,6 +86,49 @@ export default function InventoryScreen() {
     setProductToDelete(product);
   };
 
+  const handleExport = async () => {
+    try {
+      const allProducts = await db.products.toArray();
+      const dataStr = JSON.stringify(allProducts, null, 2);
+      const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+      
+      const exportFileDefaultName = `ezpos_inventory_${new Date().toISOString().split('T')[0]}.json`;
+      
+      const linkElement = document.createElement('a');
+      linkElement.setAttribute('href', dataUri);
+      linkElement.setAttribute('download', exportFileDefaultName);
+      linkElement.click();
+      
+      toast.success("Đã xuất dữ liệu thành công!");
+    } catch (error) {
+      console.error(error);
+      toast.error("Lỗi khi xuất file");
+    }
+  };
+
+  const handleImport = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const importedData = JSON.parse(event.target.result);
+        if (Array.isArray(importedData)) {
+          await db.products.bulkPut(importedData);
+          toast.success(`Đã nhập ${importedData.length} sản phẩm thành công!`);
+        } else {
+          toast.error("Định dạng file không hợp lệ!");
+        }
+      } catch (error) {
+        console.error(error);
+        toast.error("Lỗi khi nhập file");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = null;
+  };
+
 
   return (
     <div className="h-full bg-transparent p-6 flex flex-col overflow-hidden transition-colors duration-200" aria-label="Giao diện quản lý kho hàng">
