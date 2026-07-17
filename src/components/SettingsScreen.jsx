@@ -417,115 +417,7 @@ export default function SettingsScreen() {
               </form>
             </div>
 
-            {/* Cấu hình Thuế VAT */}
-            <div className="glass-card rounded-3xl p-6 flex flex-col gap-5 transition-colors duration-500 border border-slate-200/40 dark:border-slate-800/40 shadow-sm">
-              <div>
-                <h2 className="text-lg font-extrabold text-slate-850 dark:text-white mb-1 flex items-center gap-2">
-                  <Receipt className="text-sky-600 dark:text-cyan-400" size={20} />
-                  Cấu Hình Hóa Đơn & Thuế
-                </h2>
-                <p className="text-xs text-slate-400 dark:text-slate-500">
-                  Bật/Tắt tính năng xuất hóa đơn VAT và điều chỉnh thuế suất VAT mặc định của cửa hàng.
-                </p>
-              </div>
-
-              <form onSubmit={handleSaveTax} className="flex flex-col gap-4">
-                <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-950 p-4 rounded-2xl border border-slate-200/40 dark:border-slate-800/60 transition-all">
-                  <div className="pr-3">
-                    <label className="block text-xs font-extrabold text-slate-700 dark:text-slate-300">Tự động in hóa đơn</label>
-                    <span className="text-[10px] text-slate-450 dark:text-slate-550 block mt-0.5 leading-normal">Tự động kích hoạt lệnh in sau khi thanh toán thành công</span>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
-                    <input
-                      type="checkbox"
-                      checked={autoPrintEnabled}
-                      onChange={handleToggleAutoPrint}
-                      className="sr-only peer"
-                      aria-label="Tự động in hóa đơn"
-                    />
-                    <div className="w-10 h-5.5 bg-slate-200 dark:bg-slate-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-350 after:border after:rounded-full after:h-4.5 after:w-4.5 after:transition-all peer-checked:bg-sky-500 focus:outline-none"></div>
-                  </label>
-                </div>
-
-                <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-950 p-4 rounded-2xl border border-slate-200/40 dark:border-slate-800/60 transition-all">
-                  <div className="pr-3">
-                    <label className="block text-xs font-extrabold text-slate-700 dark:text-slate-300">Tắt theo dõi hàng tồn kho</label>
-                    <span className="text-[10px] text-slate-450 dark:text-slate-550 block mt-0.5 leading-normal">Ẩn số lượng tồn kho và các cảnh báo hết hàng (Dành cho cửa hàng không muốn kiểm kho)</span>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
-                    <input
-                      type="checkbox"
-                      checked={hideStockEnabled}
-                      onChange={handleToggleHideStock}
-                      className="sr-only peer"
-                      aria-label="Tắt theo dõi hàng tồn kho"
-                    />
-                    <div className="w-10 h-5.5 bg-slate-200 dark:bg-slate-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-350 after:border after:rounded-full after:h-4.5 after:w-4.5 after:transition-all peer-checked:bg-sky-500 focus:outline-none"></div>
-                  </label>
-                </div>
-
-                <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-950 p-4 rounded-2xl border border-slate-200/40 dark:border-slate-800/60 transition-all">
-                  <div className="pr-3">
-                    <label className="block text-xs font-extrabold text-slate-700 dark:text-slate-300">Kích hoạt Hóa đơn VAT</label>
-                    <span className="text-[10px] text-slate-450 dark:text-slate-500 block mt-0.5 leading-normal">Tự động hiển thị và tính toán thuế VAT khi thanh toán và in</span>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
-                    <input
-                      type="checkbox"
-                      checked={vatEnabled}
-                      onChange={(e) => setVatEnabled(e.target.checked)}
-                      className="sr-only peer"
-                      aria-label="Kích hoạt Hóa đơn VAT"
-                    />
-                    <div className="w-10 h-5.5 bg-slate-200 dark:bg-slate-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-350 after:border after:rounded-full after:h-4.5 after:w-4.5 after:transition-all peer-checked:bg-emerald-500 focus:outline-none"></div>
-                  </label>
-                </div>
-
-                <AnimatePresence>
-                  {vatEnabled && (
-                    <motion.div 
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
-                      transition={{ duration: 0.2, ease: "easeOut" }}
-                      className="overflow-hidden"
-                    >
-                      <label className="flex items-center gap-2 text-[10px] font-bold text-slate-455 dark:text-slate-500 mb-1.5 uppercase tracking-widest pt-2">
-                        Thuế suất VAT (%)
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="number"
-                          min="0"
-                          max="100"
-                          required
-                          value={vatRate}
-                          onChange={(e) => setVatRate(e.target.value)}
-                          className="w-full pl-4 pr-12 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200/50 dark:border-slate-800/80 rounded-2xl text-slate-850 dark:text-slate-100 font-mono font-extrabold text-sm focus:outline-none focus:bg-white dark:focus:bg-slate-950 focus:border-sky-500 dark:focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                          placeholder="VD: 10..."
-                        />
-                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500 dark:text-slate-400">%</span>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-                <div className="pt-4 border-t border-slate-100 dark:border-slate-800/50 flex justify-end">
-                  <motion.button
-                    whileTap={{ scale: 0.97 }}
-                    type="submit"
-                    className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white font-bold rounded-2xl text-xs sm:text-sm shadow-md shadow-sky-500/15 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
-                  >
-                    <Save size={16} />
-                    Lưu Cấu Hóa Đơn VAT
-                  </motion.button>
-                </div>
-              </form>
-            </div>
-          </div>
-
-          {/* CỘT PHẢI: Sao Lưu & Khôi Phục Dữ Liệu */}
-          <div className="space-y-8 flex flex-col">
+            {/* Mục Bảo Vệ & Sao Lưu Dữ Liệu */}
             <div className="glass-card rounded-3xl p-6 border border-slate-200/40 dark:border-slate-800/40 shadow-sm flex flex-col gap-6 transition-colors duration-200">
               <div>
                 <h2 className="text-lg font-extrabold text-slate-850 dark:text-white mb-1 flex items-center gap-2">
@@ -633,169 +525,282 @@ export default function SettingsScreen() {
               </div>
             </div>
           </div>
+          </div>
 
-          {/* Mục Cập Nhật Phần Mềm */}
-          <div className="glass-card rounded-3xl p-6 border border-slate-200/40 dark:border-slate-800/40 shadow-sm flex flex-col gap-5 transition-colors duration-200">
+          {/* CỘT PHẢI: Sao Lưu & Khôi Phục Dữ Liệu */}
+          <div className="space-y-8 flex flex-col">
+            {/* Cấu hình Thuế VAT */}
+            <div className="glass-card rounded-3xl p-6 flex flex-col gap-5 transition-colors duration-500 border border-slate-200/40 dark:border-slate-800/40 shadow-sm">
               <div>
                 <h2 className="text-lg font-extrabold text-slate-850 dark:text-white mb-1 flex items-center gap-2">
-                  <DownloadCloud className="text-sky-600 dark:text-cyan-400" size={20} />
-                  Thông Tin Cập Nhật
+                  <Receipt className="text-sky-600 dark:text-cyan-400" size={20} />
+                  Cấu Hình Hóa Đơn & Thuế
                 </h2>
-                <p className="text-xs text-slate-400 dark:text-slate-550">
-                  Phiên bản hiện tại: <strong className="text-sky-600 dark:text-sky-400 text-sm">v1.0.1</strong>
+                <p className="text-xs text-slate-400 dark:text-slate-500">
+                  Bật/Tắt tính năng xuất hóa đơn VAT và điều chỉnh thuế suất VAT mặc định của cửa hàng.
                 </p>
               </div>
 
-              <div className="bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-5 flex flex-col items-center justify-center gap-4 border border-slate-100 dark:border-slate-800/60 text-center">
-                {updateStatus === 'idle' && (
-                  <>
-                    <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">Hệ thống đang sử dụng phiên bản ổn định.</p>
-                    <motion.button
-                      whileTap={{ scale: 0.97 }}
-                      onClick={handleCheckUpdate}
-                      className="px-6 py-3 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-sky-600 dark:text-sky-400 border border-sky-100 dark:border-sky-900/50 font-extrabold rounded-2xl text-xs sm:text-sm shadow-sm transition-all focus:outline-none flex items-center gap-2"
+              <form onSubmit={handleSaveTax} className="flex flex-col gap-4">
+                <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-950 p-4 rounded-2xl border border-slate-200/40 dark:border-slate-800/60 transition-all">
+                  <div className="pr-3">
+                    <label className="block text-xs font-extrabold text-slate-700 dark:text-slate-300">Tự động in hóa đơn</label>
+                    <span className="text-[10px] text-slate-450 dark:text-slate-550 block mt-0.5 leading-normal">Tự động kích hoạt lệnh in sau khi thanh toán thành công</span>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={autoPrintEnabled}
+                      onChange={handleToggleAutoPrint}
+                      className="sr-only peer"
+                      aria-label="Tự động in hóa đơn"
+                    />
+                    <div className="w-10 h-5.5 bg-slate-200 dark:bg-slate-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-350 after:border after:rounded-full after:h-4.5 after:w-4.5 after:transition-all peer-checked:bg-sky-500 focus:outline-none"></div>
+                  </label>
+                </div>
+
+                <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-950 p-4 rounded-2xl border border-slate-200/40 dark:border-slate-800/60 transition-all">
+                  <div className="pr-3">
+                    <label className="block text-xs font-extrabold text-slate-700 dark:text-slate-300">Tắt theo dõi hàng tồn kho</label>
+                    <span className="text-[10px] text-slate-450 dark:text-slate-550 block mt-0.5 leading-normal">Ẩn số lượng tồn kho và các cảnh báo hết hàng (Dành cho cửa hàng không muốn kiểm kho)</span>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={hideStockEnabled}
+                      onChange={handleToggleHideStock}
+                      className="sr-only peer"
+                      aria-label="Tắt theo dõi hàng tồn kho"
+                    />
+                    <div className="w-10 h-5.5 bg-slate-200 dark:bg-slate-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-350 after:border after:rounded-full after:h-4.5 after:w-4.5 after:transition-all peer-checked:bg-sky-500 focus:outline-none"></div>
+                  </label>
+                </div>
+
+                <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-950 p-4 rounded-2xl border border-slate-200/40 dark:border-slate-800/60 transition-all">
+                  <div className="pr-3">
+                    <label className="block text-xs font-extrabold text-slate-700 dark:text-slate-300">Kích hoạt Hóa đơn VAT</label>
+                    <span className="text-[10px] text-slate-450 dark:text-slate-500 block mt-0.5 leading-normal">Tự động hiển thị và tính toán thuế VAT khi thanh toán và in</span>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={vatEnabled}
+                      onChange={(e) => setVatEnabled(e.target.checked)}
+                      className="sr-only peer"
+                      aria-label="Kích hoạt Hóa đơn VAT"
+                    />
+                    <div className="w-10 h-5.5 bg-slate-200 dark:bg-slate-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-350 after:border after:rounded-full after:h-4.5 after:w-4.5 after:transition-all peer-checked:bg-emerald-500 focus:outline-none"></div>
+                  </label>
+                </div>
+
+                <AnimatePresence>
+                  {vatEnabled && (
+                    <motion.div 
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.2, ease: "easeOut" }}
+                      className="overflow-hidden"
                     >
-                      <RefreshCw size={16} />
-                      Kiểm Tra Bản Cập Nhật
-                    </motion.button>
-                  </>
-                )}
-                
-                {updateStatus === 'checking' && (
-                  <div className="flex flex-col items-center gap-2 text-sky-600 dark:text-sky-400 font-bold text-sm">
-                    <RefreshCw size={24} className="animate-spin" />
-                    <span>Đang kiểm tra phiên bản mới...</span>
-                  </div>
-                )}
+                      <label className="flex items-center gap-2 text-[10px] font-bold text-slate-455 dark:text-slate-500 mb-1.5 uppercase tracking-widest pt-2">
+                        Thuế suất VAT (%)
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          required
+                          value={vatRate}
+                          onChange={(e) => setVatRate(e.target.value)}
+                          className="w-full pl-4 pr-12 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200/50 dark:border-slate-800/80 rounded-2xl text-slate-850 dark:text-slate-100 font-mono font-extrabold text-sm focus:outline-none focus:bg-white dark:focus:bg-slate-950 focus:border-sky-500 dark:focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          placeholder="VD: 10..."
+                        />
+                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500 dark:text-slate-400">%</span>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
-                {updateStatus === 'not-available' && (
-                  <div className="flex flex-col items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold text-sm">
-                    <Check size={24} />
-                    <span>Bạn đang dùng phiên bản mới nhất!</span>
-                  </div>
-                )}
-
-                {updateStatus === 'available' && (
-                  <>
-                    <div className="flex flex-col items-center gap-1 text-sky-600 dark:text-sky-400">
-                      <Info size={24} />
-                      <span className="font-bold text-sm">Có bản cập nhật mới!</span>
-                    </div>
-                    <motion.button
-                      whileTap={{ scale: 0.97 }}
-                      onClick={handleDownloadUpdate}
-                      className="px-6 py-3 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white font-bold rounded-2xl text-xs sm:text-sm shadow-md transition-all focus:outline-none flex items-center gap-2"
-                    >
-                      <Download size={16} />
-                      Tải Xuống Ngay
-                    </motion.button>
-                  </>
-                )}
-
-                {updateStatus === 'downloading' && (
-                  <div className="w-full flex flex-col items-center gap-3">
-                    <span className="text-sm font-bold text-sky-600 dark:text-sky-400">Đang tải xuống: {updateProgress}%</span>
-                    <div className="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-2.5 overflow-hidden">
-                      <div className="bg-gradient-to-r from-sky-400 to-blue-500 h-2.5 rounded-full transition-all duration-300" style={{ width: `${updateProgress}%` }}></div>
-                    </div>
-                  </div>
-                )}
-
-                {updateStatus === 'downloaded' && (
-                  <>
-                    <div className="flex flex-col items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold text-sm">
-                      <Check size={24} />
-                      <span>Đã tải xong bản cập nhật!</span>
-                    </div>
-                    <motion.button
-                      whileTap={{ scale: 0.97 }}
-                      onClick={handleInstallUpdate}
-                      className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold rounded-2xl text-xs sm:text-sm shadow-md transition-all focus:outline-none flex items-center gap-2"
-                    >
-                      Khởi Động Lại & Cài Đặt
-                    </motion.button>
-                  </>
-                )}
-
-                {updateStatus === 'error' && (
-                  <div className="flex flex-col items-center gap-2 text-rose-500 font-bold text-sm">
-                    <ShieldAlert size={24} />
-                    <span>Lỗi kiểm tra cập nhật: {updateError}</span>
-                  </div>
-                )}
-              </div>
+                <div className="pt-4 border-t border-slate-100 dark:border-slate-800/50 flex justify-end">
+                  <motion.button
+                    whileTap={{ scale: 0.97 }}
+                    type="submit"
+                    className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white font-bold rounded-2xl text-xs sm:text-sm shadow-md shadow-sky-500/15 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                  >
+                    <Save size={16} />
+                    Lưu Cấu Hóa Đơn VAT
+                  </motion.button>
+                </div>
+              </form>
             </div>
 
-            {/* Mục Hướng dẫn Phím Tắt */}
-            <div className="glass-card rounded-3xl p-6 border border-slate-200/40 dark:border-slate-800/40 shadow-sm flex flex-col gap-5 transition-colors duration-200">
-              <div>
-                <h2 className="text-lg font-extrabold text-slate-850 dark:text-white mb-1 flex items-center gap-2">
-                  <Keyboard className="text-purple-600 dark:text-purple-400" size={20} />
-                  Hướng Dẫn Phím Tắt
-                </h2>
-                <p className="text-xs text-slate-400 dark:text-slate-550">
-                  Tối ưu hóa thao tác để bán hàng nhanh hơn bằng bàn phím.
-                </p>
-              </div>
+          {/* Mục Hướng dẫn Phím Tắt */}
+          <div className="glass-card rounded-3xl p-6 border border-slate-200/40 dark:border-slate-800/40 shadow-sm flex flex-col gap-5 transition-colors duration-200">
+            <div>
+              <h2 className="text-lg font-extrabold text-slate-850 dark:text-white mb-1 flex items-center gap-2">
+                <Keyboard className="text-purple-600 dark:text-purple-400" size={20} />
+                Hướng Dẫn Phím Tắt
+              </h2>
+              <p className="text-xs text-slate-400 dark:text-slate-550">
+                Tối ưu hóa thao tác để bán hàng nhanh hơn bằng bàn phím.
+              </p>
+            </div>
 
-              <div className="bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-5 border border-slate-100 dark:border-slate-800/60 overflow-hidden">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Cột 1 */}
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center border-b border-slate-200/50 dark:border-slate-800/50 pb-2">
-                      <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">Thanh Toán</span>
-                      <kbd className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-700 dark:text-slate-300 shadow-sm">Enter</kbd>
-                    </div>
-                    <div className="flex justify-between items-center border-b border-slate-200/50 dark:border-slate-800/50 pb-2">
-                      <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">Tìm Sản Phẩm</span>
-                      <kbd className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-700 dark:text-slate-300 shadow-sm flex items-center gap-1"><Command size={12} />/Ctrl + F</kbd>
-                    </div>
-                    <div className="flex justify-between items-center border-b border-slate-200/50 dark:border-slate-800/50 pb-2">
-                      <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">Tìm Khách Hàng</span>
-                      <kbd className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-700 dark:text-slate-300 shadow-sm flex items-center gap-1"><Command size={12} />/Ctrl + U</kbd>
-                    </div>
-                    <div className="flex justify-between items-center border-b border-slate-200/50 dark:border-slate-800/50 pb-2">
-                      <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">Chuyển Giá Sỉ/Lẻ</span>
-                      <kbd className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-700 dark:text-slate-300 shadow-sm flex items-center gap-1"><Command size={12} />/Ctrl + D</kbd>
-                    </div>
-                    <div className="flex justify-between items-center border-b border-slate-200/50 dark:border-slate-800/50 pb-2">
-                      <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">Nhập Giảm Giá</span>
-                      <kbd className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-700 dark:text-slate-300 shadow-sm flex items-center gap-1"><Command size={12} />/Ctrl + G</kbd>
-                    </div>
-                    <div className="flex justify-between items-center border-b border-slate-200/50 dark:border-slate-800/50 pb-2">
-                      <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">Đổi Hình Thức Thanh Toán</span>
-                      <kbd className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-700 dark:text-slate-300 shadow-sm flex items-center gap-1"><ArrowLeft size={12} /> / <ArrowRight size={12} /></kbd>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">Điền Tiền Nhanh (VD: 50k)</span>
-                      <kbd className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-700 dark:text-slate-300 shadow-sm flex items-center gap-1">Gõ 50 <CornerDownLeft size={12} /></kbd>
+            <div className="bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-5 border border-slate-100 dark:border-slate-800/60 overflow-hidden">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Cột 1 */}
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center border-b border-slate-200/50 dark:border-slate-800/50 pb-2">
+                    <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">Thanh Toán</span>
+                    <kbd className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-700 dark:text-slate-300 shadow-sm">Enter</kbd>
+                  </div>
+                  <div className="flex justify-between items-center border-b border-slate-200/50 dark:border-slate-800/50 pb-2">
+                    <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">Tìm Sản Phẩm</span>
+                    <kbd className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-700 dark:text-slate-300 shadow-sm flex items-center gap-1"><Command size={12} />/Ctrl + F</kbd>
+                  </div>
+                  <div className="flex justify-between items-center border-b border-slate-200/50 dark:border-slate-800/50 pb-2">
+                    <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">Tìm Khách Hàng</span>
+                    <kbd className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-700 dark:text-slate-300 shadow-sm flex items-center gap-1"><Command size={12} />/Ctrl + U</kbd>
+                  </div>
+                  <div className="flex justify-between items-center border-b border-slate-200/50 dark:border-slate-800/50 pb-2">
+                    <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">Chuyển Giá Sỉ/Lẻ</span>
+                    <kbd className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-700 dark:text-slate-300 shadow-sm flex items-center gap-1"><Command size={12} />/Ctrl + D</kbd>
+                  </div>
+                  <div className="flex justify-between items-center border-b border-slate-200/50 dark:border-slate-800/50 pb-2">
+                    <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">Nhập Giảm Giá</span>
+                    <kbd className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-700 dark:text-slate-300 shadow-sm flex items-center gap-1"><Command size={12} />/Ctrl + G</kbd>
+                  </div>
+                  <div className="flex justify-between items-center border-b border-slate-200/50 dark:border-slate-800/50 pb-2">
+                    <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">Nhập Phí Khác</span>
+                    <kbd className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-700 dark:text-slate-300 shadow-sm flex items-center gap-1"><Command size={12} />/Ctrl + P</kbd>
+                  </div>
+                  <div className="flex justify-between items-center border-b border-slate-200/50 dark:border-slate-800/50 pb-2">
+                    <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">Đổi Hình Thức Thanh Toán</span>
+                    <kbd className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-700 dark:text-slate-300 shadow-sm flex items-center gap-1"><ArrowLeft size={12} /> / <ArrowRight size={12} /></kbd>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">Điền Tiền Nhanh (VD: 50k)</span>
+                    <kbd className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-700 dark:text-slate-300 shadow-sm flex items-center gap-1">Gõ 50 <CornerDownLeft size={12} /></kbd>
+                  </div>
+                </div>
+                {/* Cột 2 */}
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center border-b border-slate-200/50 dark:border-slate-800/50 pb-2">
+                    <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">Thêm Giỏ Hàng Mới</span>
+                    <kbd className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-700 dark:text-slate-300 shadow-sm flex items-center gap-1"><Command size={12} />/Ctrl + T</kbd>
+                  </div>
+                  <div className="flex justify-between items-center border-b border-slate-200/50 dark:border-slate-800/50 pb-2">
+                    <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">Chuyển Giỏ Hàng</span>
+                    <div className="flex gap-1">
+                      <kbd className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-700 dark:text-slate-300 shadow-sm flex items-center gap-1"><Command size={12} />/Ctrl + [</kbd>
+                      <kbd className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-700 dark:text-slate-300 shadow-sm">]</kbd>
                     </div>
                   </div>
-                  {/* Cột 2 */}
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center border-b border-slate-200/50 dark:border-slate-800/50 pb-2">
-                      <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">Thêm Giỏ Hàng Mới</span>
-                      <kbd className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-700 dark:text-slate-300 shadow-sm flex items-center gap-1"><Command size={12} />/Ctrl + T</kbd>
-                    </div>
-                    <div className="flex justify-between items-center border-b border-slate-200/50 dark:border-slate-800/50 pb-2">
-                      <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">Chuyển Giỏ Hàng</span>
-                      <div className="flex gap-1">
-                        <kbd className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-700 dark:text-slate-300 shadow-sm flex items-center gap-1"><Command size={12} />/Ctrl + [</kbd>
-                        <kbd className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-700 dark:text-slate-300 shadow-sm">]</kbd>
-                      </div>
-                    </div>
-                    <div className="flex justify-between items-center border-b border-slate-200/50 dark:border-slate-800/50 pb-2">
-                      <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">Đóng Hộp Thoại</span>
-                      <kbd className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-700 dark:text-slate-300 shadow-sm">ESC</kbd>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">Chỉnh Số Lượng SP</span>
-                      <kbd className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-700 dark:text-slate-300 shadow-sm">↑ ↓</kbd>
-                    </div>
+                  <div className="flex justify-between items-center border-b border-slate-200/50 dark:border-slate-800/50 pb-2">
+                    <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">Đóng Hộp Thoại</span>
+                    <kbd className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-700 dark:text-slate-300 shadow-sm">ESC</kbd>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">Chỉnh Số Lượng SP</span>
+                    <kbd className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-700 dark:text-slate-300 shadow-sm">↑ ↓</kbd>
                   </div>
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Mục Cập Nhật Phần Mềm */}
+          <div className="glass-card rounded-3xl p-6 border border-slate-200/40 dark:border-slate-800/40 shadow-sm flex flex-col gap-5 transition-colors duration-200">
+            <div>
+              <h2 className="text-lg font-extrabold text-slate-850 dark:text-white mb-1 flex items-center gap-2">
+                <DownloadCloud className="text-sky-600 dark:text-cyan-400" size={20} />
+                Thông Tin Cập Nhật
+              </h2>
+              <p className="text-xs text-slate-400 dark:text-slate-550">
+                Phiên bản hiện tại: <strong className="text-sky-600 dark:text-sky-400 text-sm">v1.0.2</strong>
+              </p>
+            </div>
+
+            <div className="bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-5 flex flex-col items-center justify-center gap-4 border border-slate-100 dark:border-slate-800/60 text-center">
+              {updateStatus === 'idle' && (
+                <>
+                  <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">Hệ thống đang sử dụng phiên bản ổn định.</p>
+                  <motion.button
+                    whileTap={{ scale: 0.97 }}
+                    onClick={handleCheckUpdate}
+                    className="px-6 py-3 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-sky-600 dark:text-sky-400 border border-sky-100 dark:border-sky-900/50 font-extrabold rounded-2xl text-xs sm:text-sm shadow-sm transition-all focus:outline-none flex items-center gap-2"
+                  >
+                    <RefreshCw size={16} />
+                    Kiểm Tra Bản Cập Nhật
+                  </motion.button>
+                </>
+              )}
+              
+              {updateStatus === 'checking' && (
+                <div className="flex flex-col items-center gap-2 text-sky-600 dark:text-sky-400 font-bold text-sm">
+                  <RefreshCw size={24} className="animate-spin" />
+                  <span>Đang kiểm tra phiên bản mới...</span>
+                </div>
+              )}
+
+              {updateStatus === 'not-available' && (
+                <div className="flex flex-col items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold text-sm">
+                  <Check size={24} />
+                  <span>Bạn đang dùng phiên bản mới nhất!</span>
+                </div>
+              )}
+
+              {updateStatus === 'available' && (
+                <>
+                  <div className="flex flex-col items-center gap-1 text-sky-600 dark:text-sky-400">
+                    <Info size={24} />
+                    <span className="font-bold text-sm">Có bản cập nhật mới!</span>
+                  </div>
+                  <motion.button
+                    whileTap={{ scale: 0.97 }}
+                    onClick={handleDownloadUpdate}
+                    className="px-6 py-3 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white font-bold rounded-2xl text-xs sm:text-sm shadow-md transition-all focus:outline-none flex items-center gap-2"
+                  >
+                    <Download size={16} />
+                    Tải Xuống Ngay
+                  </motion.button>
+                </>
+              )}
+
+              {updateStatus === 'downloading' && (
+                <div className="w-full flex flex-col items-center gap-3">
+                  <span className="text-sm font-bold text-sky-600 dark:text-sky-400">Đang tải xuống: {updateProgress}%</span>
+                  <div className="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-2.5 overflow-hidden">
+                    <div className="bg-gradient-to-r from-sky-400 to-blue-500 h-2.5 rounded-full transition-all duration-300" style={{ width: `${updateProgress}%` }}></div>
+                  </div>
+                </div>
+              )}
+
+              {updateStatus === 'downloaded' && (
+                <>
+                  <div className="flex flex-col items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold text-sm">
+                    <Check size={24} />
+                    <span>Đã tải xong bản cập nhật!</span>
+                  </div>
+                  <motion.button
+                    whileTap={{ scale: 0.97 }}
+                    onClick={handleInstallUpdate}
+                    className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold rounded-2xl text-xs sm:text-sm shadow-md transition-all focus:outline-none flex items-center gap-2"
+                  >
+                    Khởi Động Lại & Cài Đặt
+                  </motion.button>
+                </>
+              )}
+
+              {updateStatus === 'error' && (
+                <div className="flex flex-col items-center gap-2 text-rose-500 font-bold text-sm">
+                  <ShieldAlert size={24} />
+                  <span>Lỗi kiểm tra cập nhật: {updateError}</span>
+                </div>
+              )}
+            </div>
+          </div>
 
           </div>
         </div>

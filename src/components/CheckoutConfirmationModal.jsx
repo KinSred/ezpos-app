@@ -16,6 +16,8 @@ export default function CheckoutConfirmationModal({
   setDiscount,
   discountType,
   setDiscountType,
+  surcharge,
+  setSurcharge,
   finalAmount,
   customer,
   setCustomer,
@@ -182,6 +184,14 @@ export default function CheckoutConfirmationModal({
         e.preventDefault();
         const discountInput = document.getElementById('checkout-discount-input');
         if (discountInput) discountInput.focus();
+        return;
+      }
+
+      // Phụ thu (Cmd+P)
+      if (isCmdOrCtrl && e.key.toLowerCase() === 'p') {
+        e.preventDefault();
+        const surchargeInput = document.getElementById('checkout-surcharge-input');
+        if (surchargeInput) surchargeInput.focus();
         return;
       }
 
@@ -497,6 +507,12 @@ export default function CheckoutConfirmationModal({
                   <span className="font-mono font-semibold text-slate-700 dark:text-slate-300">+{formatPrice(totalTaxAmount)}</span>
                 </div>
               )}
+              {surcharge > 0 && (
+                <div className="flex justify-between text-amber-600 dark:text-amber-400 font-bold bg-amber-50 dark:bg-amber-500/10 p-2 rounded-lg -mx-2 px-2">
+                  <span>Khác:</span>
+                  <span className="font-mono">+{formatPrice(surcharge)}</span>
+                </div>
+              )}
               <div className="flex justify-between items-end pt-4 mt-2 border-t-2 border-dashed border-slate-200 dark:border-slate-800">
                 <span className="font-extrabold text-slate-800 dark:text-slate-200 text-base uppercase tracking-wider mb-1">Tổng Cần Thu</span>
                 <span className="text-3xl font-black text-sky-600 dark:text-sky-400 font-mono tracking-tight">{formatPrice(finalAmount)}</span>
@@ -517,41 +533,43 @@ export default function CheckoutConfirmationModal({
                 </div>
               )}
               
-              <div className="mb-4 group bg-gradient-to-br from-white/80 to-white/40 dark:from-slate-800/80 dark:to-slate-900/40 backdrop-blur-xl rounded-2xl p-4 border border-white/60 dark:border-slate-700/50 shadow-sm hover:shadow-md transition-all duration-300 relative">
-                {/* Decorative background element wrapper */}
-                <div className="absolute inset-0 overflow-hidden rounded-2xl pointer-events-none">
-                  <div className="absolute -right-6 -top-6 w-24 h-24 bg-sky-500/10 dark:bg-sky-400/5 rounded-full blur-2xl group-hover:bg-sky-500/20 transition-colors duration-500"></div>
-                </div>
-                
-                <div className="flex items-center justify-between mb-2.5 relative z-10">
-                  <label className="text-[11px] font-extrabold text-slate-600 dark:text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                    <div className="bg-sky-100 dark:bg-sky-500/20 p-1.5 rounded-lg text-sky-600 dark:text-sky-400 shadow-sm">
-                      <Calendar size={14} strokeWidth={2.5} />
+              {paymentMethod === 'credit' && (
+                <div className="mb-4 group bg-gradient-to-br from-white/80 to-white/40 dark:from-slate-800/80 dark:to-slate-900/40 backdrop-blur-xl rounded-2xl p-4 border border-white/60 dark:border-slate-700/50 shadow-sm hover:shadow-md transition-all duration-300 relative">
+                  {/* Decorative background element wrapper */}
+                  <div className="absolute inset-0 overflow-hidden rounded-2xl pointer-events-none">
+                    <div className="absolute -right-6 -top-6 w-24 h-24 bg-sky-500/10 dark:bg-sky-400/5 rounded-full blur-2xl group-hover:bg-sky-500/20 transition-colors duration-500"></div>
+                  </div>
+                  
+                  <div className="flex items-center justify-between mb-2.5 relative z-10">
+                    <label className="text-[11px] font-extrabold text-slate-600 dark:text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                      <div className="bg-sky-100 dark:bg-sky-500/20 p-1.5 rounded-lg text-sky-600 dark:text-sky-400 shadow-sm">
+                        <Calendar size={14} strokeWidth={2.5} />
+                      </div>
+                      Thời gian tạo đơn
+                    </label>
+                    <span className="text-[10px] text-sky-600 dark:text-sky-400 font-bold px-2.5 py-1 bg-sky-50 dark:bg-sky-500/10 rounded-lg border border-sky-100/50 dark:border-sky-500/20">
+                      Tuỳ chỉnh
+                    </span>
+                  </div>
+                  <div className="relative z-10 group/input datepicker-wrapper">
+                    <DatePicker
+                      selected={orderDate}
+                      onChange={(date) => setOrderDate(date)}
+                      showTimeSelect
+                      timeFormat="HH:mm"
+                      timeIntervals={15}
+                      dateFormat="dd/MM/yyyy, HH:mm"
+                      className="w-full pl-4 pr-11 py-3 bg-white/90 dark:bg-slate-950/90 border border-slate-200/80 dark:border-slate-800/80 rounded-xl text-sm font-black text-slate-800 dark:text-slate-100 focus:outline-none focus:border-sky-400 focus:ring-4 focus:ring-sky-400/10 transition-all cursor-pointer shadow-inner hover:border-sky-300 dark:hover:border-sky-700/50"
+                      title="Thay đổi ngày giờ nếu bạn xuất đơn muộn"
+                      popperClassName="custom-datepicker-popper"
+                      portalId="root"
+                    />
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-sky-500/70 group-hover/input:text-sky-500 transition-colors pointer-events-none bg-white/90 dark:bg-slate-950/90 pl-1">
+                       <Edit2 size={16} strokeWidth={2.5} />
                     </div>
-                    Thời gian tạo đơn
-                  </label>
-                  <span className="text-[10px] text-sky-600 dark:text-sky-400 font-bold px-2.5 py-1 bg-sky-50 dark:bg-sky-500/10 rounded-lg border border-sky-100/50 dark:border-sky-500/20">
-                    Tuỳ chỉnh
-                  </span>
-                </div>
-                <div className="relative z-10 group/input datepicker-wrapper">
-                  <DatePicker
-                    selected={orderDate}
-                    onChange={(date) => setOrderDate(date)}
-                    showTimeSelect
-                    timeFormat="HH:mm"
-                    timeIntervals={15}
-                    dateFormat="dd/MM/yyyy, HH:mm"
-                    className="w-full pl-4 pr-11 py-3 bg-white/90 dark:bg-slate-950/90 border border-slate-200/80 dark:border-slate-800/80 rounded-xl text-sm font-black text-slate-800 dark:text-slate-100 focus:outline-none focus:border-sky-400 focus:ring-4 focus:ring-sky-400/10 transition-all cursor-pointer shadow-inner hover:border-sky-300 dark:hover:border-sky-700/50"
-                    title="Thay đổi ngày giờ nếu bạn xuất đơn muộn"
-                    popperClassName="custom-datepicker-popper"
-                    portalId="root"
-                  />
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 text-sky-500/70 group-hover/input:text-sky-500 transition-colors pointer-events-none bg-white/90 dark:bg-slate-950/90 pl-1">
-                     <Edit2 size={16} strokeWidth={2.5} />
                   </div>
                 </div>
-              </div>
+              )}
 
               <div className="mb-4 bg-white/40 dark:bg-slate-900/40 rounded-2xl p-3 border border-slate-200/50 dark:border-slate-800/50">
                 <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 flex items-center justify-between">
@@ -610,6 +628,47 @@ export default function CheckoutConfirmationModal({
                     }}
                     className="flex-1 px-3 py-2 bg-white/60 dark:bg-slate-900/60 border border-slate-200/50 dark:border-slate-800/50 rounded-xl text-sm font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all"
                     placeholder={`Nhập ${discountType === 'percent' ? '%' : 'số tiền'}...`}
+                  />
+                </div>
+              </div>
+
+              <div className="mb-4 bg-white/40 dark:bg-slate-900/40 rounded-2xl p-3 border border-slate-200/50 dark:border-slate-800/50">
+                <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 flex items-center justify-between">
+                  <span>Khác</span>
+                  <AnimatePresence>
+                    {showShortcuts && (
+                      <motion.span initial={{opacity:0, scale:0.8}} animate={{opacity:1, scale:1}} exit={{opacity:0, scale:0.8}} className="text-[10px] bg-sky-500 text-white px-2 py-0.5 rounded shadow-sm normal-case font-bold tracking-normal flex items-center gap-1">
+                        <Command size={10} />/Ctrl + P
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </h4>
+                <div className="flex gap-2">
+                  <div className="flex bg-slate-100 dark:bg-slate-800 rounded-xl p-1 flex-shrink-0">
+                    <button
+                      type="button"
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold transition-colors bg-white dark:bg-slate-700 text-sky-600 dark:text-sky-400 shadow-sm"
+                    >
+                      VNĐ
+                    </button>
+                  </div>
+                  <input 
+                    id="checkout-surcharge-input"
+                    type="text" 
+                    value={surcharge ? new Intl.NumberFormat('en-US').format(surcharge) : ''}
+                    onChange={(e) => {
+                      let val = e.target.value.replace(/,/g, '').replace(/\D/g, '');
+                      if (!val) { setSurcharge(0); return; }
+                      let num = parseInt(val, 10);
+                      setSurcharge(num);
+                    }}
+                    onBlur={() => {
+                      if (surcharge > 0 && surcharge < 1000) {
+                        setSurcharge(surcharge * 1000);
+                      }
+                    }}
+                    className="flex-1 px-3 py-2 bg-white/60 dark:bg-slate-900/60 border border-slate-200/50 dark:border-slate-800/50 rounded-xl text-sm font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all"
+                    placeholder="Nhập số tiền..."
                   />
                 </div>
               </div>

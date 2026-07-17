@@ -2,7 +2,7 @@
   "name": "ezpos",
   "author": "Tri Bảo",
   "private": true,
-  "version": "1.0.1",
+  "version": "1.0.2",
   "type": "module",
   "main": "electron/main.js",
   "scripts": {
@@ -47,6 +47,7 @@
     "peerjs": "^1.5.5",
     "postcss": "^8.5.15",
     "react": "^19.2.7",
+    "react-barcode": "^1.6.1",
     "react-datepicker": "^9.1.0",
     "react-dom": "^19.2.7",
     "react-hot-toast": "^2.6.0",

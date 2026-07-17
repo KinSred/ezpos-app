@@ -25,7 +25,8 @@ export default function CartColumn({
   onAddTab,
   onRemoveTab,
   onSwitchTab,
-  showShortcuts
+  showShortcuts = false,
+  hideStockEnabled = false
 }) {
   const [editingCartId, setEditingCartId] = useState(null);
   const [editPriceVal, setEditPriceVal] = useState('');
@@ -224,10 +225,8 @@ export default function CartColumn({
                    activeDiscountTier = sortedTiers.find(tier => qtyVal >= tier.minQty);
                  }
                 
-                let conversionRate = 1;
-                if (isWholesale) conversionRate = item.wholesaleConversionRate || 1;
-                if (isMid) conversionRate = item.midConversionRate || 1;
-                const isWarningStock = item.stock !== undefined && (item.qty * conversionRate) > item.stock;
+                const conversionRate = isWholesale ? (item.wholesaleConversionRate || 1) : isMid ? (item.midConversionRate || 1) : 1;
+                const isWarningStock = !hideStockEnabled && item.stock !== undefined && (item.qty * conversionRate) > item.stock;
 
                 let bgClass = 'bg-white/40 dark:bg-slate-900/40 border-slate-200/50 dark:border-slate-800/50 hover:shadow-sm';
                 if (isWholesale) bgClass = 'bg-amber-50/50 dark:bg-amber-500/5 border-amber-500/20';

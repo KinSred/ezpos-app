@@ -33,11 +33,12 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
           customer: oldCustomer ? JSON.parse(oldCustomer) : null,
           discount: oldDiscount ? JSON.parse(oldDiscount) : 0,
           discountType: oldDiscountType ? JSON.parse(oldDiscountType) : 'percent',
+          surcharge: 0,
           isCredit: mode === 'wholesale'
         }];
       }
     } catch (e) { console.error('Lỗi đọc cart tabs', e); }
-    return [{ id: Date.now(), name: 'Đơn 1', items: [], customer: null, discount: 0, discountType: 'percent', isCredit: mode === 'wholesale' }];
+    return [{ id: Date.now(), name: 'Đơn 1', items: [], customer: null, discount: 0, discountType: 'percent', surcharge: 0, isCredit: mode === 'wholesale' }];
   });
 
   const [activeTabId, setActiveTabId] = useState(() => cartTabs[0]?.id || Date.now());
@@ -63,6 +64,7 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
   const customer = activeTab.customer;
   const discount = activeTab.discount || 0;
   const discountType = activeTab.discountType || 'percent';
+  const surcharge = activeTab.surcharge || 0;
   const isCredit = activeTab.isCredit ?? (mode === 'wholesale');
 
   const updateActiveTab = (updates) => {
@@ -82,12 +84,13 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
   const setCustomer = (cust) => updateActiveTab({ customer: cust });
   const setDiscount = (disc) => updateActiveTab({ discount: typeof disc === 'function' ? disc(activeTab.discount || 0) : disc });
   const setDiscountType = (type) => updateActiveTab({ discountType: type });
+  const setSurcharge = (amount) => updateActiveTab({ surcharge: typeof amount === 'function' ? amount(activeTab.surcharge || 0) : amount });
   const setIsCredit = (credit) => updateActiveTab({ isCredit: credit });
   
   const handleAddTab = () => {
     const newId = Date.now();
     let newName = `Đơn ${cartTabs.length + 1}`;
-    const newTab = { id: newId, name: newName, items: [], customer: null, discount: 0, discountType: 'percent', isCredit: mode === 'wholesale' };
+    const newTab = { id: newId, name: newName, items: [], customer: null, discount: 0, discountType: 'percent', surcharge: 0, isCredit: mode === 'wholesale' };
     setCartTabs(prev => [...prev, newTab]);
     setActiveTabId(newId);
   };
@@ -95,7 +98,7 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
   const handleRemoveTab = (id) => {
     if (cartTabs.length === 1) {
        // Reset the only tab
-       setCartTabs([{ id: Date.now(), name: 'Đơn 1', items: [], customer: null, discount: 0, discountType: 'percent', isCredit: mode === 'wholesale' }]);
+       setCartTabs([{ id: Date.now(), name: 'Đơn 1', items: [], customer: null, discount: 0, discountType: 'percent', surcharge: 0, isCredit: mode === 'wholesale' }]);
     } else {
       const newTabs = cartTabs.filter(t => t.id !== id);
       setCartTabs(newTabs);
@@ -109,9 +112,10 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [lastCompletedOrder, setLastCompletedOrder] = useState(null);
 
-  // Global VAT Settings
+  // Global VAT & Settings
   const [globalVatEnabled, setGlobalVatEnabled] = useState(false);
   const [globalVatRate, setGlobalVatRate] = useState(0);
+  const [hideStockEnabled, setHideStockEnabled] = useState(false);
 
   // States for modals and UI
   const [showAddProductModal, setShowAddProductModal] = useState(false);
@@ -127,17 +131,19 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
   }, [cartTabs, mode]);
 
   useEffect(() => {
-    const fetchVat = async () => {
+    const fetchSettings = async () => {
       try {
         const en = await db.settings.get('vatEnabled');
         const rt = await db.settings.get('vatRate');
+        const hs = await db.settings.get('hideStock');
         setGlobalVatEnabled(en?.value === 'true');
         setGlobalVatRate(rt ? parseFloat(rt.value) : 0);
+        setHideStockEnabled(hs?.value === 'true');
       } catch (err) {
-        console.error('Failed to load VAT settings', err);
+        console.error('Failed to load settings', err);
       }
     };
-    fetchVat();
+    fetchSettings();
   }, []);
 
   // Global Enter key & Shortcuts listener for Checkout
@@ -149,6 +155,7 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
 
       // F1 or Cmd+F / Cmd+P : Focus scanner search
       if (e.key === 'F1' || (isCmdOrCtrl && (e.key.toLowerCase() === 'f' || e.key.toLowerCase() === 'p'))) {
+        if (showConfirmModal) return; // Allow CheckoutModal to use Cmd+P
         e.preventDefault();
         document.getElementById('scanner-search-input')?.focus();
         return;
@@ -496,7 +503,7 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
   };
 
   const totalTaxAmount = cartItems.reduce((sum, item) => sum + Math.round((getAppliedPrice(item) * (item.qty || 0) * discountFactor) * getEffectiveTaxRate(item) / 100), 0);
-  const finalAmount = Math.max(0, totalAmount - discountAmount) + totalTaxAmount;
+  const finalAmount = Math.max(0, totalAmount - discountAmount) + totalTaxAmount + surcharge;
 
   const handleConfirmCheckout = (method, receivedAmount, changeAmount, orderDateStr) => {
     // If credit, override method
@@ -520,6 +527,7 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
         discount: discountAmount,
         discountPercent: discountType === 'percent' ? discount : 0,
         discountType: discountType,
+        surcharge: surcharge,
         totalTax: totalTaxAmount,
         items: cartItems.map(item => {
           const mode = item.sellMode || (item.isWholesale ? 'wholesale' : 'base');
@@ -663,6 +671,7 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
       clearCart();
       setCustomer(null);
       setDiscount(0);
+      setSurcharge(0);
       setIsCredit(mode === 'wholesale');
       setActiveMobileTab('scanner');
     } catch (error) {
@@ -760,6 +769,7 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
               onRemoveTab={handleRemoveTab}
               onSwitchTab={setActiveTabId}
               showShortcuts={showShortcuts}
+              hideStockEnabled={hideStockEnabled}
             />
           </div>
         </div>
@@ -784,6 +794,8 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
             setDiscount={setDiscount}
             discountType={discountType}
             setDiscountType={setDiscountType}
+            surcharge={surcharge}
+            setSurcharge={setSurcharge}
             finalAmount={finalAmount}
             customer={customer}
             setCustomer={setCustomer}

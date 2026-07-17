@@ -718,6 +718,12 @@ export default function HistoryReportsScreen() {
                           <span>-{formatPrice(selectedOrder.discount)}</span>
                         </div>
                       )}
+                      {selectedOrder.surcharge > 0 && (
+                        <div className="flex justify-between text-amber-600 dark:text-amber-400">
+                          <span>Khác:</span>
+                          <span>+{formatPrice(selectedOrder.surcharge)}</span>
+                        </div>
+                      )}
                       <div className="flex justify-between font-bold text-sm text-slate-900 dark:text-slate-100 border-t border-dotted border-black/10 dark:border-white/10 pt-2">
                         <span>TỔNG CỘNG:</span>
                         <span>{formatPrice(selectedOrder.total)}</span>

@@ -42,12 +42,12 @@ export default function PrintableReceipt({ order, isBatchPrint = false }) {
 
   const isCredit = order.paymentStatus === 'credit';
 
-  const displayPrevDebt = order.customerPreviousDebt !== undefined 
-    ? order.customerPreviousDebt 
+  const displayPrevDebt = order.customerPreviousDebt !== undefined
+    ? order.customerPreviousDebt
     : (tx ? (tx.remainingDebt - tx.amount) : null);
 
-  const displayNewDebt = order.customerRemainingDebt !== undefined 
-    ? order.customerRemainingDebt 
+  const displayNewDebt = order.customerRemainingDebt !== undefined
+    ? order.customerRemainingDebt
     : (tx ? tx.remainingDebt : null);
   const renderSingleReceipt = (lienLabel) => {
     return (
@@ -89,14 +89,13 @@ export default function PrintableReceipt({ order, isBatchPrint = false }) {
           </div>
 
           {order.items.map((item, index) => {
-            const typeLabel = item.sellMode === 'wholesale' ? '(Sỉ)' : item.sellMode === 'mid' ? '(Lốc)' : '';
             const itemDiscount = item.discountAmount || 0;
             const hasDiscount = itemDiscount > 0;
 
             return (
               <div key={index} className="flex flex-col text-[13px]">
                 <div className="font-semibold text-black uppercase leading-tight">
-                  {item.name} {typeLabel} {item.taxRate > 0 ? `(VAT ${item.taxRate}%)` : ''}
+                  {item.name} {item.taxRate > 0 ? `(VAT ${item.taxRate}%)` : ''}
                 </div>
                 {hasDiscount && (
                   <div className="text-[11.5px] text-gray-755 italic">
@@ -147,6 +146,13 @@ export default function PrintableReceipt({ order, isBatchPrint = false }) {
             <div className="flex justify-between">
               <span>Tổng VAT:</span>
               <span>{formatPrice(order.totalTax)}</span>
+            </div>
+          )}
+
+          {order.surcharge > 0 && (
+            <div className="flex justify-between font-medium">
+              <span>Khác:</span>
+              <span>{formatPrice(order.surcharge)}</span>
             </div>
           )}
 
@@ -233,19 +239,7 @@ export default function PrintableReceipt({ order, isBatchPrint = false }) {
 
   return createPortal(
     <div className="print-only bg-white text-black py-2">
-      {(isCredit && !isBatchPrint) ? (
-        <div className="flex flex-col">
-          <div style={{ pageBreakAfter: 'always' }}>
-            {renderSingleReceipt("LIÊN 1: GIAO KHÁCH HÀNG")}
-          </div>
-          
-          <div>
-            {renderSingleReceipt("LIÊN 2: CỬA HÀNG LƯU")}
-          </div>
-        </div>
-      ) : (
-        renderSingleReceipt(null)
-      )}
+      {renderSingleReceipt(null)}
     </div>,
     document.body
   );
