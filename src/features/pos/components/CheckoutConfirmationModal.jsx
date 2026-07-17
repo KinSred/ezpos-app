@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShoppingBag, Receipt, QrCode, Coins, CheckCircle2, X, AlertTriangle, CreditCard, Trash2, Edit2, Calendar, Command, ArrowLeft, ArrowRight, CornerDownLeft } from 'lucide-react';
-import { db } from '../db';
+import { db } from '../../../db';
 import toast from 'react-hot-toast';
-import CustomerSelector from './CustomerSelector';
+import CustomerSelector from "../../customers/components/CustomerSelector";
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 

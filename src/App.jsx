@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import POSScreen from './components/POSScreen';
-import InventoryScreen from './components/InventoryScreen';
-import SettingsScreen from './components/SettingsScreen';
-import HistoryReportsScreen from './components/HistoryReportsScreen';
-import CustomersScreen from './components/CustomersScreen';
-import RemoteScanner from './components/RemoteScanner';
-import PromotionsScreen from './components/PromotionsScreen';
+import POSScreen from './features/pos/POSScreen';
+import InventoryScreen from './features/inventory/InventoryScreen';
+import SettingsScreen from './features/settings/SettingsScreen';
+import HistoryReportsScreen from './features/history/HistoryReportsScreen';
+import CustomersScreen from './features/customers/CustomersScreen';
+import RemoteScanner from './features/settings/components/RemoteScanner';
+import PromotionsScreen from './features/promotions/PromotionsScreen';
 import { ShoppingCart, Package, Settings, BarChart3, Users, Sun, Moon, Truck, Smartphone, Tag } from 'lucide-react';
 import { Toaster } from 'react-hot-toast';
 import { db } from './db';
@@ -14,7 +14,7 @@ import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import SyncHost from './components/SyncHost';
+import SyncHost from './features/settings/components/SyncHost';
 
 function App() {
   const location = useLocation();

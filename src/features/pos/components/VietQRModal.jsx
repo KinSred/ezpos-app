@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { QrCode, CheckCircle2, X } from 'lucide-react';
-import { db } from '../db';
+import { db } from '../../../db';
 
 export default function VietQRModal({ amount, onClose, onSuccess }) {
   const [qrUrl, setQrUrl] = useState('');

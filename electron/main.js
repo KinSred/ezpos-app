@@ -204,8 +204,10 @@ autoUpdater.on('update-downloaded', (info) => {
 });
 
 // App lifecycle
-// Bỏ qua lỗi SSL do Vite dùng chứng chỉ tự ký (basicSsl)
-app.commandLine.appendSwitch('ignore-certificate-errors');
+// Chỉ bỏ qua lỗi SSL (do Vite self-signed) trong môi trường Development
+if (isDev) {
+  app.commandLine.appendSwitch('ignore-certificate-errors');
+}
 
 app.whenReady().then(() => {
   createWindow();

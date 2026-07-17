@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, UserCheck, UserPlus, ChevronUp, ChevronDown, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { db } from '../db';
+import { db } from '../../../db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import toast from 'react-hot-toast';
 

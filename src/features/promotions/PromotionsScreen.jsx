@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Tag, Plus, Trash2, Edit2, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { db } from '../db';
+import { db } from '../../db';
 import toast from 'react-hot-toast';
 import { useLiveQuery } from 'dexie-react-hooks';
 

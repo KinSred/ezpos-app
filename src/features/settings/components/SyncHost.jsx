@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Peer } from 'peerjs';
 import QRCode from 'react-qr-code';
-import { db } from '../db';
+import { db } from '../../../db';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Smartphone, X, Copy } from 'lucide-react';
-import { removeAccents } from '../utils/string';
+import { removeAccents } from '../../../utils/string';
 
 export default function SyncHost({ showModal, onClose }) {
   const [peerId, setPeerId] = useState('');

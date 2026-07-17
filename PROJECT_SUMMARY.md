@@ -1,5 +1,5 @@
 # EZPOS - Project Summary & Status
-*Ngày cập nhật gần nhất: 12/07/2026*
+*Ngày cập nhật gần nhất: 17/07/2026*
 
 ## 1. Giới thiệu dự án
 Dự án **EZPOS** là một ứng dụng Desktop (Point of Sale - POS) offline-first chạy độc lập trên máy tính (Windows/macOS) thông qua **Electron Framework**. Ứng dụng được xây dựng bằng React, Vite, TailwindCSS, và sử dụng IndexedDB (thông qua thư viện Dexie) để lưu trữ dữ liệu trực tiếp dưới ổ cứng của người dùng, mang lại trải nghiệm mượt mà, độc lập hoàn toàn với internet.
@@ -99,7 +99,7 @@ Hệ thống được thiết kế theo phong cách SaaS tối giản cao cấp 
 ## 6. Hướng dẫn Resume (Dành cho AI)
 Khi người dùng mở lại dự án và yêu cầu bạn đọc file này:
 1. Nắm rõ toàn bộ logic kinh doanh (Business logic) như đã mô tả ở trên.
-2. Tất cả các components UI đều được viết dưới dạng functional components (React) và nằm trong thư mục `/src/components`.
+2. Tất cả các components UI đều được viết dưới dạng functional components (React) theo kiến trúc **Feature-based** (chia nhỏ theo nhóm tính năng nằm trong thư mục `/src/features/`). Kiến trúc cũ `/src/components` đã được tái cấu trúc lại.
 3. Database logic tập trung ở file `/src/db.js`.
 4. Khi cải tiến UI, luôn giữ đúng nguyên lý xếp chồng z-index cho các cấu trúc trượt động `layoutId` (`z-0` cho underlay, `relative z-10` cho label chữ phía trên) để giữ độ sắc nét của màu sắc.
 5. Không thay đổi hoặc phá vỡ bộ cấu hình in ấn 64mm (padding 7.5mm trái, 0.5mm phải) để tránh làm lệch hoặc quấn lề chữ in hóa đơn.

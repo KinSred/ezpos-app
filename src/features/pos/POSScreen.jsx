@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import ScannerColumn from './ScannerColumn';
-import CartColumn from './CartColumn';
-import AddProductModal from './AddProductModal';
-import CheckoutConfirmationModal from './CheckoutConfirmationModal';
-import DuplicateBarcodeModal from './DuplicateBarcodeModal';
-import CheckoutSuccessModal from './CheckoutSuccessModal';
-import PrintableReceipt from './PrintableReceipt';
-import { db } from '../db';
+import ScannerColumn from './components/ScannerColumn';
+import CartColumn from './components/CartColumn';
+import AddProductModal from '../inventory/components/AddProductModal';
+import CheckoutConfirmationModal from './components/CheckoutConfirmationModal';
+import DuplicateBarcodeModal from '../inventory/components/DuplicateBarcodeModal';
+import CheckoutSuccessModal from './components/CheckoutSuccessModal';
+import PrintableReceipt from './components/PrintableReceipt';
+import { db } from '../../db';
 import toast from 'react-hot-toast';
-import { autoSaveToLocalStorage, syncToCloud } from '../utils/backup';
-import { silentPrint } from '../utils/silentPrint';
+import { autoSaveToLocalStorage, syncToCloud } from '../../utils/backup';
+import { silentPrint } from '../../utils/silentPrint';
 import { useLiveQuery } from 'dexie-react-hooks';
 
 export default function POSScreen({ mode = 'retail', isActive = true }) {

@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { db } from '../db';
+import { db } from '../../db';
 import { Settings, Save, CreditCard, Building2, User, Download, Upload, Cloud, ShieldAlert, Key, Copy, Check, Receipt, Battery, ChevronDown, DownloadCloud, RefreshCw, Info, Keyboard, Command, ArrowLeft, ArrowRight, CornerDownLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { generateBackupData, restoreBackupData, syncToCloud, fetchFromCloud } from '../utils/backup';
+import { generateBackupData, restoreBackupData, syncToCloud, fetchFromCloud } from '../../utils/backup';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const BANKS = [

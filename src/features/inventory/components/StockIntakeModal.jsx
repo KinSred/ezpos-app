@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Search, X, PackagePlus, ArrowRight, Save, Info } from 'lucide-react';
-import { db } from '../db';
+import { db } from '../../../db';
 import toast from 'react-hot-toast';
-import { removeAccents } from '../utils/string';
+import { removeAccents } from '../../../utils/string';
 
 export default function StockIntakeModal({ onClose, onSaved }) {
   const [searchTerm, setSearchTerm] = useState('');

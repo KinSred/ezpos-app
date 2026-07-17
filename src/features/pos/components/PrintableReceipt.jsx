@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { db } from '../db';
+import { db } from '../../../db';
 
 export default function PrintableReceipt({ order, isBatchPrint = false }) {
   const [tx, setTx] = useState(null);

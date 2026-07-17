@@ -4,7 +4,12 @@
 
 ---
 
-## [v1.0.2] - 2026-07-14
+## [v1.0.2] - 2026-07-17
+### ✨ Cập nhật mã nguồn & Tối ưu hóa (Refactoring & Security)
+- **Tái cấu trúc toàn diện (Phase 1 & Phase 2):** Chuyển đổi kiến trúc sang dạng `Feature-based`. Chia nhỏ thành công các "Component khổng lồ" nghìn dòng (như `InventoryScreen`, `HistoryReportsScreen`, `CustomersScreen`) thành các Sub-component độc lập, giúp mã nguồn cực kì gọn gàng, siêu dễ bảo trì và nâng cấp sau này.
+- **Vá lỗ hổng bảo mật (Security Fix):** Cập nhật `electron/main.js` để tự động bật lại kiểm tra chứng chỉ SSL an toàn tuyệt đối khi ở môi trường Production.
+- **Dọn dẹp hệ thống:** Loại bỏ hàng loạt hàm thừa, script rác, xóa bỏ các thư viện chưa sử dụng để file ứng dụng nhẹ nhất có thể.
+
 ### ✨ Tính năng mới (New Features)
 - **Thêm tính năng Phí Khác:** Trong màn hình thanh toán, giờ đây thu ngân có thể thêm các khoản "Khác" (ví dụ: phí vận chuyển, phí dịch vụ thêm). Khoản tiền này sẽ được cộng trực tiếp vào tổng tiền.
 - **Phím tắt mới:** Thêm phím tắt `Ctrl + P` (hoặc `Cmd + P` trên Mac) tại màn hình thanh toán để nhập Phí Khác. Bảng Hướng dẫn Phím tắt cũng được cập nhật trong Cài Đặt.

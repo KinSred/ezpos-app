@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ScanLine, Search, X, Package, Barcode, Command } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { db } from '../db';
-import { removeAccents } from '../utils/string';
+import { db } from '../../../db';
+import { removeAccents } from '../../../utils/string';
 
 export default function ScannerColumn({ onScan, onSelectProduct, onAddProduct, isActive = true, showShortcuts }) {
   const [searchQuery, setSearchQuery] = useState('');
