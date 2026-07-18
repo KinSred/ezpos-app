@@ -148,7 +148,7 @@ function App() {
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-transparent transition-colors duration-500 relative">
       <LiquidBackground />
-      <StartShiftModal isOpen={!currentShift} />
+      <StartShiftModal isOpen={!currentShift && !isAdmin} />
       {showEndShift && <EndShiftModal onClose={() => setShowEndShift(false)} />}
       
       {/* Top Navigation Bar */}
@@ -360,7 +360,7 @@ function App() {
             </motion.button>
 
             {/* End Shift Button */}
-            {currentShift && (
+            {(currentShift && !isAdmin) && (
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
@@ -377,7 +377,7 @@ function App() {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => {
-                if (currentShift) {
+                if (currentShift && !isAdmin) {
                   toast('Ca làm việc vẫn đang mở', { icon: '🔒' });
                 }
                 logout();

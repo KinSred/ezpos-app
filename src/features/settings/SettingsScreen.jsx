@@ -718,7 +718,7 @@ export default function SettingsScreen() {
                 Thông Tin Cập Nhật
               </h2>
               <p className="text-xs text-slate-400 dark:text-slate-550">
-                Phiên bản hiện tại: <strong className="text-sky-600 dark:text-sky-400 text-sm">v1.0.2</strong>
+                Phiên bản hiện tại: <strong className="text-sky-600 dark:text-sky-400 text-sm">v{__APP_VERSION__}</strong>
               </p>
             </div>
 
