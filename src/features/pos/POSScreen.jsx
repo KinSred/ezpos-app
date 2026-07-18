@@ -11,8 +11,10 @@ import toast from 'react-hot-toast';
 import { autoSaveToLocalStorage, syncToCloud } from '../../utils/backup';
 import { silentPrint } from '../../utils/silentPrint';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function POSScreen({ mode = 'retail', isActive = true }) {
+  const { currentUser, currentShift } = useAuth();
   const [cartTabs, setCartTabs] = useState(() => {
     try {
       const saved = localStorage.getItem(`pos_cart_tabs_${mode}`);
@@ -38,7 +40,7 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
         }];
       }
     } catch (e) { console.error('Lỗi đọc cart tabs', e); }
-    return [{ id: Date.now(), name: 'Đơn 1', items: [], customer: null, discount: 0, discountType: 'percent', surcharge: 0, isCredit: mode === 'wholesale' }];
+    return [{ id: Date.now(), name: 'Đơn 1', items: [], customer: null, discount: 0, discountType: 'percent', surcharge: 0, isCredit: false }];
   });
 
   const [activeTabId, setActiveTabId] = useState(() => cartTabs[0]?.id || Date.now());
@@ -65,7 +67,7 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
   const discount = activeTab.discount || 0;
   const discountType = activeTab.discountType || 'percent';
   const surcharge = activeTab.surcharge || 0;
-  const isCredit = activeTab.isCredit ?? (mode === 'wholesale');
+  const isCredit = activeTab.isCredit ?? false;
 
   const updateActiveTab = (updates) => {
     setCartTabs(prev => prev.map(tab => tab.id === activeTabId ? { ...tab, ...updates } : tab));
@@ -86,11 +88,13 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
   const setDiscountType = (type) => updateActiveTab({ discountType: type });
   const setSurcharge = (amount) => updateActiveTab({ surcharge: typeof amount === 'function' ? amount(activeTab.surcharge || 0) : amount });
   const setIsCredit = (credit) => updateActiveTab({ isCredit: credit });
+  const setPointsUsed = (points) => updateActiveTab({ pointsUsed: points });
+  const pointsUsed = activeTab.pointsUsed || 0;
   
   const handleAddTab = () => {
     const newId = Date.now();
     let newName = `Đơn ${cartTabs.length + 1}`;
-    const newTab = { id: newId, name: newName, items: [], customer: null, discount: 0, discountType: 'percent', surcharge: 0, isCredit: mode === 'wholesale' };
+    const newTab = { id: newId, name: newName, items: [], customer: null, discount: 0, discountType: 'percent', surcharge: 0, isCredit: false, pointsUsed: 0 };
     setCartTabs(prev => [...prev, newTab]);
     setActiveTabId(newId);
   };
@@ -98,7 +102,7 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
   const handleRemoveTab = (id) => {
     if (cartTabs.length === 1) {
        // Reset the only tab
-       setCartTabs([{ id: Date.now(), name: 'Đơn 1', items: [], customer: null, discount: 0, discountType: 'percent', surcharge: 0, isCredit: mode === 'wholesale' }]);
+       setCartTabs([{ id: Date.now(), name: 'Đơn 1', items: [], customer: null, discount: 0, discountType: 'percent', surcharge: 0, isCredit: false, pointsUsed: 0 }]);
     } else {
       const newTabs = cartTabs.filter(t => t.id !== id);
       setCartTabs(newTabs);
@@ -153,23 +157,35 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
     const handleGlobalKeyDown = (e) => {
       const isCmdOrCtrl = e.metaKey || e.ctrlKey;
 
-      // F1 or Cmd+F / Cmd+P : Focus scanner search
+      // F1 : Focus scanner search
       if (e.key === 'F1' || (isCmdOrCtrl && (e.key.toLowerCase() === 'f' || e.key.toLowerCase() === 'p'))) {
-        if (showConfirmModal) return; // Allow CheckoutModal to use Cmd+P
+        if (showConfirmModal) return; 
         e.preventDefault();
         document.getElementById('scanner-search-input')?.focus();
         return;
       }
 
-      // F2 or Cmd+T : Add Tab
-      if (e.key === 'F2' || (isCmdOrCtrl && e.key.toLowerCase() === 't')) {
+      // F2 : Search customer / Focus customer
+      if (e.key === 'F2' || (isCmdOrCtrl && e.key.toLowerCase() === 'u')) {
+        e.preventDefault();
+        if (!showConfirmModal && cartItems.length > 0) {
+          setShowConfirmModal(true);
+          setTimeout(() => document.getElementById('customer-search-input')?.focus(), 100);
+        } else {
+          document.getElementById('customer-search-input')?.focus();
+        }
+        return;
+      }
+
+      // F3 : Add Tab
+      if (e.key === 'F3' || (isCmdOrCtrl && e.key.toLowerCase() === 't')) {
         e.preventDefault();
         handleAddTab();
         return;
       }
       
-      // F3 or Cmd+[ / Cmd+] : Switch Tab
-      if (e.key === 'F3' || (isCmdOrCtrl && (e.key === '[' || e.key === ']'))) {
+      // F4 : Switch Tab
+      if (e.key === 'F4' || (isCmdOrCtrl && (e.key === '[' || e.key === ']'))) {
         e.preventDefault();
         if (cartTabs && cartTabs.length > 1) {
           const currentIndex = cartTabs.findIndex(t => t.id === activeTabId);
@@ -184,18 +200,6 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
         return;
       }
 
-      // F4 or Cmd+U : Search customer / Focus customer
-      if (e.key === 'F4' || (isCmdOrCtrl && e.key.toLowerCase() === 'u')) {
-        e.preventDefault();
-        if (!showConfirmModal && cartItems.length > 0) {
-          setShowConfirmModal(true);
-          setTimeout(() => document.getElementById('customer-search-input')?.focus(), 100);
-        } else {
-          document.getElementById('customer-search-input')?.focus();
-        }
-        return;
-      }
-
       // F8/F9 or Cmd+Enter : Checkout explicitly
       if (e.key === 'F8' || e.key === 'F9' || (isCmdOrCtrl && e.key === 'Enter')) {
         e.preventDefault();
@@ -205,24 +209,6 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
           } else {
             toast.error("Giỏ hàng đang trống!");
           }
-        }
-        return;
-      }
-
-      // F10 or Cmd+D : Toggle wholesale/retail mode
-      if (e.key === 'F10' || (isCmdOrCtrl && e.key.toLowerCase() === 'd')) {
-        e.preventDefault();
-        if (cartItems.length > 0) {
-          const allWholesale = cartItems.every(item => item.sellMode === 'wholesale' || (!item.sellMode && item.isWholesale));
-          const newMode = allWholesale ? 'base' : 'wholesale';
-          const updated = cartItems.map(item => {
-             if (item.wholesaleUnit) {
-               return { ...item, sellMode: newMode, isWholesale: newMode === 'wholesale' };
-             }
-             return item;
-          });
-          updateCartItems(activeTabId, updated);
-          toast.success(`Đã chuyển toàn bộ giỏ hàng sang ${newMode === 'wholesale' ? 'GIÁ SỈ' : 'GIÁ LẺ'}`);
         }
         return;
       }
@@ -317,12 +303,7 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
 
   const addToCart = (product, quantity = 1) => {
     setCartItems(prev => {
-      let sellMode = 'base';
-      if (mode === 'wholesale') {
-        if (product.wholesaleUnit) sellMode = 'wholesale';
-        else if (product.midUnit) sellMode = 'mid';
-      }
-      
+      const sellMode = 'base';
       const cartId = `${product.id}-${sellMode}`;
       const existingItem = prev.find(item => item.cartId === cartId);
       
@@ -366,57 +347,6 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
     }));
   };
 
-  const cycleCartItemSellMode = (cartId) => {
-    setCartItems(prev => {
-      const itemToToggle = prev.find(item => item.cartId === cartId);
-      if (!itemToToggle) return prev;
-
-      const currentMode = itemToToggle.sellMode || (itemToToggle.isWholesale ? 'wholesale' : 'base');
-      let nextMode = 'base';
-      if (currentMode === 'base') {
-        nextMode = itemToToggle.midUnit ? 'mid' : (itemToToggle.wholesaleUnit ? 'wholesale' : 'base');
-      } else if (currentMode === 'mid') {
-        nextMode = itemToToggle.wholesaleUnit ? 'wholesale' : 'base';
-      } else if (currentMode === 'wholesale') {
-        nextMode = 'base';
-      }
-
-      return applyNewSellMode(prev, itemToToggle, cartId, currentMode, nextMode);
-    });
-  };
-
-  const setCartItemSellMode = (cartId, nextMode) => {
-    setCartItems(prev => {
-      const itemToToggle = prev.find(item => item.cartId === cartId);
-      if (!itemToToggle) return prev;
-      const currentMode = itemToToggle.sellMode || (itemToToggle.isWholesale ? 'wholesale' : 'base');
-      return applyNewSellMode(prev, itemToToggle, cartId, currentMode, nextMode);
-    });
-  };
-
-  const applyNewSellMode = (prev, itemToToggle, cartId, currentMode, nextMode) => {
-    if (currentMode === nextMode) return prev;
-
-    const newCartId = `${itemToToggle.id}-${nextMode}`;
-    const existingTarget = prev.find(item => item.cartId === newCartId);
-
-    if (existingTarget) {
-      return prev.map(item => {
-        if (item.cartId === newCartId) {
-          return { ...item, qty: item.qty + itemToToggle.qty };
-        }
-        return item;
-      }).filter(item => item.cartId !== cartId);
-    } else {
-      return prev.map(item => {
-        if (item.cartId === cartId) {
-          return { ...item, sellMode: nextMode, cartId: newCartId };
-        }
-        return item;
-      });
-    }
-  };
-
   const clearCart = () => setCartItems([]);
 
   const handleProductAdded = (newProduct) => {
@@ -436,21 +366,17 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
   };
 
   const getAppliedPrice = (item) => {
-    const mode = item.sellMode || (item.isWholesale ? 'wholesale' : 'base');
     let basePrice = item.price;
-
-    // Check if customer has a special price for this product and unit mode (only for credit/debt sales!)
-    if (isCredit && customer && customer.specialPrices && customer.specialPrices[item.id] && customer.specialPrices[item.id][mode] !== undefined) {
-      basePrice = customer.specialPrices[item.id][mode];
-    } else {
-      if (isCredit) {
-        if (mode === 'wholesale') basePrice = item.wholesaleCreditPrice || item.wholesalePrice || item.price;
-        else if (mode === 'mid') basePrice = item.midCreditPrice || item.midPrice || item.price;
-        else basePrice = item.creditPrice || item.price;
-      } else {
-        if (mode === 'wholesale') basePrice = item.wholesalePrice || item.price;
-        else if (mode === 'mid') basePrice = item.midPrice || item.price;
-        else basePrice = item.price;
+    
+    if (isCredit && customer && customer.specialPrices && customer.specialPrices[item.id] && customer.specialPrices[item.id]['base'] !== undefined) {
+      basePrice = customer.specialPrices[item.id]['base'];
+    } else if (item.quantityDiscounts && item.quantityDiscounts.length > 0) {
+      const quantity = parseFloat(item.qty) || 0;
+      const applicableDiscount = [...item.quantityDiscounts]
+        .sort((a, b) => b.quantity - a.quantity)
+        .find(d => quantity >= d.quantity);
+      if (applicableDiscount && applicableDiscount.price < basePrice) {
+        basePrice = applicableDiscount.price;
       }
     }
 
@@ -489,10 +415,15 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
   });
 
   const totalAmount = Math.max(0, baseTotalAmount - promoDiscountAmount);
+  const pointsDiscountAmount = pointsUsed * 100; // 1 point = 100 VND
   const discountAmount = discountType === 'amount' 
     ? Math.min(totalAmount, discount) 
     : (totalAmount * discount) / 100;
-  const discountFactor = totalAmount > 0 ? (totalAmount - discountAmount) / totalAmount : 1;
+  
+  // Total discount includes both regular discount and points discount
+  const totalDiscount = Math.min(totalAmount, discountAmount + pointsDiscountAmount);
+  
+  const discountFactor = totalAmount > 0 ? (totalAmount - totalDiscount) / totalAmount : 1;
   
   const getEffectiveTaxRate = (item) => {
     if (!globalVatEnabled) return 0;
@@ -503,7 +434,7 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
   };
 
   const totalTaxAmount = cartItems.reduce((sum, item) => sum + Math.round((getAppliedPrice(item) * (item.qty || 0) * discountFactor) * getEffectiveTaxRate(item) / 100), 0);
-  const finalAmount = Math.max(0, totalAmount - discountAmount) + totalTaxAmount + surcharge;
+  const finalAmount = Math.max(0, totalAmount - totalDiscount) + totalTaxAmount + surcharge;
 
   const handleConfirmCheckout = (method, receivedAmount, changeAmount, orderDateStr) => {
     // If credit, override method
@@ -582,7 +513,9 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
         cashReceived: isCredit ? 0 : received,
         changeAmount: isCredit ? 0 : change,
         transferAmount: method === 'split' ? Math.max(0, finalAmount - received) : (method === 'vietqr' ? finalAmount : 0),
-        storeId: storeId
+        storeId: storeId,
+        userId: currentUser?.id,
+        shiftId: currentShift?.id
       };
 
       // Generate a unique random 6-digit order ID to protect sales volume privacy
@@ -629,11 +562,23 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
         }
       }
 
-      // 3. Update customer (debt)
+      // 3. Update customer (debt & points)
       if (customer) {
+        let newDebt = customer.debt || 0;
+        let newPoints = customer.points || 0;
+        
+        // Deduct used points
+        newPoints = Math.max(0, newPoints - pointsUsed);
+        
+        // Add earned points (10,000 VND = 1 point)
+        const earnedPoints = Math.floor(finalAmount / 10000);
+        newPoints += earnedPoints;
+
+        const updateData = { points: newPoints };
+
         if (isCredit) {
-          const newDebt = (customer.debt || 0) + finalAmount;
-          await db.customers.update(customer.phone, { debt: newDebt });
+          newDebt += finalAmount;
+          updateData.debt = newDebt;
 
           // Build note listing items for the transaction log
           const itemsSummary = cartItems.map(it => `${it.name} x${it.qty}`).join(', ') || '';
@@ -648,6 +593,8 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
             remainingDebt: newDebt
           });
         }
+        
+        await db.customers.update(customer.phone, updateData);
       }
 
       toast.success(isCredit ? "Đã ghi nợ thành công!" : "Thanh toán thành công!");
@@ -672,7 +619,7 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
       setCustomer(null);
       setDiscount(0);
       setSurcharge(0);
-      setIsCredit(mode === 'wholesale');
+      setIsCredit(false);
       setActiveMobileTab('scanner');
     } catch (error) {
       console.error(error);
@@ -749,8 +696,6 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
               onSetQty={setCartItemQty}
               onRemove={removeCartItem} 
               onClear={clearCart}
-              onToggleSellMode={cycleCartItemSellMode}
-              onSetSellMode={setCartItemSellMode}
               isCredit={isCredit}
               setIsCredit={setIsCredit}
               getAppliedPrice={getAppliedPrice}
@@ -770,6 +715,9 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
               onSwitchTab={setActiveTabId}
               showShortcuts={showShortcuts}
               hideStockEnabled={hideStockEnabled}
+              pointsUsed={pointsUsed}
+              setPointsUsed={setPointsUsed}
+              customer={customer}
             />
           </div>
         </div>
@@ -796,6 +744,8 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
             setDiscountType={setDiscountType}
             surcharge={surcharge}
             setSurcharge={setSurcharge}
+            pointsUsed={pointsUsed}
+            setPointsUsed={setPointsUsed}
             finalAmount={finalAmount}
             customer={customer}
             setCustomer={setCustomer}

@@ -2,7 +2,7 @@
   "name": "ezpos",
   "author": "Tri Bảo",
   "private": true,
-  "version": "1.0.2",
+  "version": "1.0.3",
   "type": "module",
   "main": "electron/main.js",
   "scripts": {
@@ -26,10 +26,12 @@
       "output": "release"
     },
     "mac": {
-      "category": "public.app-category.business"
+      "category": "public.app-category.business",
+      "icon": "build/icon.png"
     },
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "build/icon.png"
     }
   },
   "dependencies": {

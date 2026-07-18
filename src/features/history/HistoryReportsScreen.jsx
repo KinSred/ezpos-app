@@ -224,14 +224,14 @@ export default function HistoryReportsScreen() {
           </div>
 
           {/* Segmented control for tabs */}
-          <div className="flex bg-sky-100/60 dark:bg-sky-950/40 p-1 rounded-xl w-fit border border-sky-200/40 dark:border-sky-800/30">
+          <div className="flex glass-panel p-1.5 rounded-2xl w-fit">
             <motion.button 
               whileTap={{ scale: 0.97 }}
               onClick={() => { setActiveTab('history'); setSelectedOrder(null); }}
-              className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 ${
+              className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 ${
                 activeTab === 'history' 
-                  ? 'bg-sky-600 dark:bg-sky-500 text-white shadow-sm' 
-                  : 'text-slate-600 dark:text-slate-300 hover:text-sky-600 dark:hover:text-sky-300 hover:bg-white/40 dark:hover:bg-white/5'
+                  ? 'glass-card border border-white/40 dark:border-white/20 shadow-md text-sky-700 dark:text-sky-300' 
+                  : 'text-slate-600 dark:text-slate-300 hover:text-sky-600 dark:hover:text-sky-300'
               }`}
               aria-label="Xem Tab Lịch sử hóa đơn"
             >
@@ -240,10 +240,10 @@ export default function HistoryReportsScreen() {
             <motion.button 
               whileTap={{ scale: 0.97 }}
               onClick={() => { setActiveTab('reports'); setSelectedOrder(null); }}
-              className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 ${
+              className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 ${
                 activeTab === 'reports' 
-                  ? 'bg-sky-600 dark:bg-sky-500 text-white shadow-sm' 
-                  : 'text-slate-600 dark:text-slate-300 hover:text-sky-600 dark:hover:text-sky-300 hover:bg-white/40 dark:hover:bg-white/5'
+                  ? 'glass-card border border-white/40 dark:border-white/20 shadow-md text-sky-700 dark:text-sky-300' 
+                  : 'text-slate-600 dark:text-slate-300 hover:text-sky-600 dark:hover:text-sky-300'
               }`}
               aria-label="Xem Tab Báo cáo doanh số"
             >
@@ -260,16 +260,16 @@ export default function HistoryReportsScreen() {
             <div className="flex-1 glass-card rounded-3xl overflow-hidden flex flex-col min-h-0 transition-colors duration-500">
               
               {/* Search bar */}
-              <div className="p-4 border-b border-sky-200/40 dark:border-sky-900/30 flex-shrink-0 flex flex-wrap items-center justify-between gap-4 bg-sky-100/30 dark:bg-sky-950/20">
+              <div className="p-4 border-b border-sky-200/40 dark:border-sky-900/30 flex-shrink-0 flex flex-wrap items-center justify-between gap-4 glass-panel rounded-t-3xl border-0">
                 <div className="flex items-center gap-3 w-full sm:w-auto">
                   <div className="relative w-full sm:w-64">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                     <input 
                       type="text" 
                       placeholder="SĐT khách hàng..."
                       value={searchPhone}
                       onChange={(e) => setSearchPhone(e.target.value)}
-                      className="w-full pl-8 pr-3 py-2 bg-white/60 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:outline-none focus:bg-white dark:focus:bg-slate-900 focus:border-sky-500 dark:focus:border-sky-400 transition-all text-slate-900 dark:text-slate-100 placeholder-slate-400"
+                      className="w-full pl-10 pr-3 py-2.5 glass-input rounded-xl text-xs transition-all text-slate-900 dark:text-slate-100 placeholder-slate-400"
                       aria-label="Tìm kiếm theo số điện thoại"
                     />
                   </div>
@@ -278,10 +278,10 @@ export default function HistoryReportsScreen() {
                   <div className="relative">
                     <button 
                       onClick={() => setShowCalendar(!showCalendar)}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all border focus:outline-none focus:ring-2 focus:ring-sky-500 active:scale-[0.96] ${
+                      className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all glass-button border focus:outline-none focus:ring-2 focus:ring-sky-500 active:scale-[0.96] ${
                         searchDate 
-                          ? 'bg-sky-50 dark:bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-200 dark:border-sky-800' 
-                          : 'bg-white/60 dark:bg-slate-900/50 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-white dark:hover:bg-slate-900'
+                          ? 'border-sky-200 dark:border-sky-800' 
+                          : 'border-white/20 dark:border-white/10'
                       }`}
                       aria-label="Mở lịch chọn ngày"
                     >
@@ -381,7 +381,7 @@ export default function HistoryReportsScreen() {
               {/* Scrollable table wrapper */}
               <div className="flex-1 overflow-x-auto overflow-y-auto">
                 <table className="w-full text-left text-sm border-collapse min-w-[700px]">
-                  <thead className="text-xs font-bold text-sky-900 dark:text-sky-100 uppercase tracking-wider bg-sky-100/80 dark:bg-sky-950/80 backdrop-blur-sm sticky top-0 border-b border-sky-200/50 dark:border-sky-800/30 z-10">
+                  <thead className="text-xs font-bold text-sky-900 dark:text-sky-100 uppercase tracking-wider glass-panel sticky top-0 border-b border-sky-200/50 dark:border-sky-800/30 z-10">
                     <tr>
                       <th className="px-6 py-4">Mã HĐ</th>
                       <th className="px-6 py-4">Thời gian</th>
@@ -414,8 +414,8 @@ export default function HistoryReportsScreen() {
                           role="button"
                           aria-haspopup="dialog"
                           aria-expanded={selectedOrder?.id === order.id}
-                          className={`hover:bg-sky-50/50 dark:hover:bg-sky-950/20 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-inset ${
-                            selectedOrder?.id === order.id ? 'bg-sky-500/10 dark:bg-sky-500/10' : ''
+                          className={`hover:bg-sky-50/50 dark:hover:bg-sky-950/20 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-inset border-b border-white/10 dark:border-white/5 ${
+                            selectedOrder?.id === order.id ? 'glass-panel' : ''
                           }`}
                         >
                           <td className="px-6 py-4 font-mono font-bold text-xs text-slate-900 dark:text-slate-100">HD-{order.id}</td>

@@ -8,21 +8,33 @@
   }
 
   body {
-    @apply bg-gradient-to-tr from-slate-50 via-slate-100/70 to-indigo-50/30 text-slate-900 antialiased font-sans transition-colors duration-500 min-h-screen;
+    @apply bg-slate-50 text-slate-900 antialiased font-sans transition-colors duration-500 min-h-screen overflow-hidden;
     /* Typography enhancements */
     letter-spacing: -0.015em;
   }
   
   body.dark {
-    @apply bg-gradient-to-tr from-[#030712] via-[#0b0f19] to-[#111827] text-slate-100;
+    @apply bg-[#050505] text-slate-100;
   }
 }
 
 @layer utilities {
   .glass-card {
-    @apply bg-white/70 dark:bg-slate-900/60 backdrop-blur-xl border border-slate-200/50 dark:border-slate-800/50 shadow-[0_8px_32px_rgba(0,0,0,0.03)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.3)];
+    @apply bg-white/50 dark:bg-[#121629]/40 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] dark:shadow-[0_8px_32px_0_rgba(0,0,0,0.4)];
   }
   
+  .glass-panel {
+    @apply bg-white/30 dark:bg-[#0a0d1a]/50 backdrop-blur-xl border border-white/40 dark:border-white/5 shadow-lg;
+  }
+
+  .glass-button {
+    @apply bg-white/40 dark:bg-white/5 backdrop-blur-md border border-white/50 dark:border-white/10 hover:bg-white/60 dark:hover:bg-white/10 shadow-sm transition-all;
+  }
+  
+  .glass-input {
+    @apply bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/50 dark:border-white/10 focus:bg-white/70 dark:focus:bg-black/50 transition-all;
+  }
+
   .ocean-text {
     @apply text-sky-600 dark:text-sky-400;
   }

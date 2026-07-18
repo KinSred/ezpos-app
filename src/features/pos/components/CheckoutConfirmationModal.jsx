@@ -18,6 +18,8 @@ export default function CheckoutConfirmationModal({
   setDiscountType,
   surcharge,
   setSurcharge,
+  pointsUsed,
+  setPointsUsed,
   finalAmount,
   customer,
   setCustomer,
@@ -312,7 +314,7 @@ export default function CheckoutConfirmationModal({
 
   return (
     <div
-      className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4 sm:p-6 overflow-y-auto no-print"
+      className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm flex items-center justify-center z-50 p-4 sm:p-6 overflow-y-auto no-print"
       role="dialog"
       aria-modal="true"
     >
@@ -321,12 +323,12 @@ export default function CheckoutConfirmationModal({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 30 }}
         transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-        className="bg-white dark:bg-slate-900 rounded-[2rem] shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col border border-slate-200/50 dark:border-slate-800/50 transition-colors duration-300"
+        className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-3xl rounded-[2rem] shadow-[0_8px_32px_0_rgba(31,38,135,0.15)] dark:shadow-[0_8px_32px_0_rgba(0,0,0,0.4)] w-full max-w-5xl overflow-hidden flex flex-col transition-colors duration-300 border border-white/60 dark:border-white/10"
       >
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-200/50 dark:border-slate-800/50 flex items-center justify-between bg-slate-50/80 dark:bg-slate-900/80 backdrop-blur-sm z-10 sticky top-0">
+        <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between glass-panel z-10 sticky top-0">
           <h3 className="font-extrabold text-slate-800 dark:text-slate-100 flex items-center gap-2 text-base">
-            <div className="bg-sky-100 dark:bg-sky-500/20 p-1.5 rounded-lg text-sky-600 dark:text-sky-400">
+            <div className="glass-card p-1.5 rounded-lg text-sky-600 dark:text-sky-400">
               <Receipt size={20} strokeWidth={2.5} />
             </div>
             {isCredit ? 'Xác Nhận Đơn Nợ' : 'Thanh Toán Đơn Hàng'}
@@ -346,8 +348,8 @@ export default function CheckoutConfirmationModal({
         <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-y-auto max-h-[85vh]">
 
           {/* Cột trái (45%): Review mặt hàng */}
-          <div className="lg:col-span-5 border-r border-slate-200/50 dark:border-slate-800/50 p-5 flex flex-col min-h-0 bg-slate-50/50 dark:bg-slate-900/50">
-            <h4 className="text-sm font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-4 flex items-center gap-2">
+          <div className="lg:col-span-5 border-r border-white/20 p-6 flex flex-col min-h-0 bg-white/30 dark:bg-slate-900/40">
+            <h4 className="text-sm font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-5 flex items-center gap-2">
               <ShoppingBag size={18} className="text-sky-500" />
               Chi tiết mặt hàng <span className="bg-sky-100 dark:bg-sky-500/20 text-sky-600 dark:text-sky-400 px-2.5 py-1 rounded-full text-[11px]">{cartItems.reduce((acc, item) => acc + item.qty, 0)}</span>
             </h4>
@@ -391,7 +393,7 @@ export default function CheckoutConfirmationModal({
                         hidden: { opacity: 0, x: -10 },
                         show: { opacity: 1, x: 0 }
                       }}
-                      className="flex flex-col p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/50 dark:border-slate-700/50 shadow-sm group relative"
+                      className="flex flex-col p-4 bg-white/50 dark:bg-slate-800/50 rounded-2xl shadow-sm border border-white/40 dark:border-white/10 group relative"
                     >
                       <div className="flex justify-between items-start gap-3">
                         <div className="min-w-0 flex-1">
@@ -484,7 +486,7 @@ export default function CheckoutConfirmationModal({
             </div>
 
             {/* Order Price calculation breakdown */}
-            <div className="pt-3 border-t border-slate-200/50 dark:border-slate-800/50 space-y-2 mt-auto">
+            <div className="pt-3 border-t border-white/10 space-y-2 mt-auto">
               <div className="flex justify-between text-slate-500 dark:text-slate-400 font-medium">
                 <span>Tiền hàng cơ bản:</span>
                 <span className="font-mono font-semibold text-slate-700 dark:text-slate-300">{formatPrice(baseTotalAmount || totalAmount)}</span>
@@ -499,6 +501,12 @@ export default function CheckoutConfirmationModal({
                 <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-500/10 p-2 rounded-lg -mx-2 px-2">
                   <span>Chiết khấu {discountType === 'percent' ? `(${discount}%)` : ''}:</span>
                   <span className="font-mono">-{formatPrice(discountType === 'percent' ? (totalAmount * discount) / 100 : Math.min(totalAmount, discount))}</span>
+                </div>
+              )}
+              {pointsUsed > 0 && (
+                <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-500/10 p-2 rounded-lg -mx-2 px-2">
+                  <span>Dùng điểm tích lũy ({pointsUsed}đ):</span>
+                  <span className="font-mono">-{formatPrice(pointsUsed * 100)}</span>
                 </div>
               )}
               {totalTaxAmount > 0 && (
@@ -571,7 +579,7 @@ export default function CheckoutConfirmationModal({
                 </div>
               )}
 
-              <div className="mb-4 bg-white/40 dark:bg-slate-900/40 rounded-2xl p-3 border border-slate-200/50 dark:border-slate-800/50">
+              <div className="mb-5">
                 <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 flex items-center justify-between">
                   <span>Chiết Khấu / Giảm Giá</span>
                   <AnimatePresence>
@@ -626,13 +634,49 @@ export default function CheckoutConfirmationModal({
                         setDiscount(discount * 1000);
                       }
                     }}
-                    className="flex-1 px-3 py-2 bg-white/60 dark:bg-slate-900/60 border border-slate-200/50 dark:border-slate-800/50 rounded-xl text-sm font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all"
+                    className="flex-1 px-4 py-3 glass-input rounded-xl text-sm font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all shadow-inner"
                     placeholder={`Nhập ${discountType === 'percent' ? '%' : 'số tiền'}...`}
                   />
                 </div>
               </div>
 
-              <div className="mb-4 bg-white/40 dark:bg-slate-900/40 rounded-2xl p-3 border border-slate-200/50 dark:border-slate-800/50">
+              {customer && customer.points > 0 && (
+                <div className="mb-5">
+                  <h4 className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mb-2 flex items-center justify-between">
+                    <span>Sử Dụng Điểm Tích Lũy</span>
+                    <span className="text-[10px] bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded font-bold">
+                      Khả dụng: {customer.points}
+                    </span>
+                  </h4>
+                  <div className="flex gap-2">
+                    <input 
+                      type="text" 
+                      value={pointsUsed ? new Intl.NumberFormat('en-US').format(pointsUsed) : ''}
+                      onChange={(e) => {
+                        let val = e.target.value.replace(/,/g, '').replace(/\D/g, '');
+                        if (!val) { setPointsUsed(0); return; }
+                        let num = parseInt(val, 10);
+                        if (num > customer.points) num = customer.points;
+                        
+                        // Limit to max amount of points that cover totalAmount
+                        const maxPointsToCoverTotal = Math.ceil(totalAmount / 100);
+                        if (num > maxPointsToCoverTotal) num = maxPointsToCoverTotal;
+                        
+                        setPointsUsed(num);
+                      }}
+                      className="flex-1 px-4 py-3 glass-input rounded-xl text-sm font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all shadow-inner"
+                      placeholder="Nhập điểm... (1 điểm = 100đ)"
+                    />
+                    {pointsUsed > 0 && (
+                      <div className="flex items-center justify-center px-3 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 font-bold rounded-xl border border-emerald-100 dark:border-emerald-800">
+                        -{formatPrice(pointsUsed * 100)}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div className="mb-5">
                 <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 flex items-center justify-between">
                   <span>Khác</span>
                   <AnimatePresence>
@@ -667,7 +711,7 @@ export default function CheckoutConfirmationModal({
                         setSurcharge(surcharge * 1000);
                       }
                     }}
-                    className="flex-1 px-3 py-2 bg-white/60 dark:bg-slate-900/60 border border-slate-200/50 dark:border-slate-800/50 rounded-xl text-sm font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all"
+                    className="flex-1 px-4 py-3 glass-input rounded-xl text-sm font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all shadow-inner"
                     placeholder="Nhập số tiền..."
                   />
                 </div>
@@ -692,10 +736,10 @@ export default function CheckoutConfirmationModal({
                     whileTap={{ scale: 0.97 }}
                     type="button"
                     onClick={() => { setPaymentMethod('cash'); if (setIsCredit) setIsCredit(false); }}
-                    className={`p-3 rounded-xl font-bold flex flex-col items-center justify-center gap-1.5 transition-all text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 border ${
+                    className={`p-4 rounded-2xl font-bold flex flex-col items-center justify-center gap-2 transition-all text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 border ${
                       paymentMethod === 'cash'
-                        ? 'bg-sky-50 dark:bg-sky-500/10 border-sky-500 text-sky-700 dark:text-sky-400 shadow-[0_2px_8px_rgba(14,165,233,0.15)]'
-                        : 'bg-white dark:bg-slate-800 border-slate-200/50 dark:border-slate-700/50 text-slate-500 dark:text-slate-400 hover:border-sky-300 dark:hover:border-sky-700/50 shadow-sm'
+                        ? 'bg-gradient-to-br from-sky-500 to-blue-600 text-white border-transparent shadow-lg shadow-sky-500/30'
+                        : 'bg-white/40 dark:bg-slate-800/40 border-white/40 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:bg-white/70 dark:hover:bg-slate-700/50 shadow-sm'
                     }`}
                     aria-label="Thanh toán tiền mặt"
                   >
@@ -708,10 +752,10 @@ export default function CheckoutConfirmationModal({
                     whileTap={{ scale: 0.97 }}
                     type="button"
                     onClick={() => { setPaymentMethod('vietqr'); if (setIsCredit) setIsCredit(false); }}
-                    className={`p-3 rounded-xl font-bold flex flex-col items-center justify-center gap-1.5 transition-all text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 border ${
+                    className={`p-4 rounded-2xl font-bold flex flex-col items-center justify-center gap-2 transition-all text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 border ${
                       paymentMethod === 'vietqr'
-                        ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-500 text-emerald-700 dark:text-emerald-400 shadow-[0_2px_8px_rgba(16,185,129,0.15)]'
-                        : 'bg-white dark:bg-slate-800 border-slate-200/50 dark:border-slate-700/50 text-slate-500 dark:text-slate-400 hover:border-emerald-300 dark:hover:border-emerald-700/50 shadow-sm'
+                        ? 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white border-transparent shadow-lg shadow-emerald-500/30'
+                        : 'bg-white/40 dark:bg-slate-800/40 border-white/40 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:bg-white/70 dark:hover:bg-slate-700/50 shadow-sm'
                     }`}
                     aria-label="Thanh toán chuyển khoản"
                   >
@@ -724,16 +768,16 @@ export default function CheckoutConfirmationModal({
                     whileTap={{ scale: 0.97 }}
                     type="button"
                     onClick={() => { setPaymentMethod('split'); if (setIsCredit) setIsCredit(false); }}
-                    className={`p-3 rounded-xl font-bold flex flex-col items-center justify-center gap-1.5 transition-all text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 border ${
+                    className={`p-4 rounded-2xl font-bold flex flex-col items-center justify-center gap-2 transition-all text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 border ${
                       paymentMethod === 'split'
-                        ? 'bg-indigo-50 dark:bg-indigo-500/10 border-indigo-500 text-indigo-700 dark:text-indigo-400 shadow-[0_2px_8px_rgba(99,102,241,0.15)]'
-                        : 'bg-white dark:bg-slate-800 border-slate-200/50 dark:border-slate-700/50 text-slate-500 dark:text-slate-400 hover:border-indigo-300 dark:hover:border-indigo-700/50 shadow-sm'
+                        ? 'bg-gradient-to-br from-indigo-500 to-violet-600 text-white border-transparent shadow-lg shadow-indigo-500/30'
+                        : 'bg-white/40 dark:bg-slate-800/40 border-white/40 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:bg-white/70 dark:hover:bg-slate-700/50 shadow-sm'
                     }`}
                     aria-label="Thanh toán kết hợp"
                   >
                     <div className="flex -space-x-2">
-                      <Coins size={20} strokeWidth={2} className={paymentMethod === 'split' ? 'text-indigo-500' : 'text-slate-400'} />
-                      <QrCode size={20} strokeWidth={2} className={paymentMethod === 'split' ? 'text-indigo-500' : 'text-slate-400'} />
+                      <Coins size={20} strokeWidth={2} className={paymentMethod === 'split' ? 'text-white' : 'text-slate-400'} />
+                      <QrCode size={20} strokeWidth={2} className={paymentMethod === 'split' ? 'text-white' : 'text-slate-400'} />
                     </div>
                     <span>Kết Hợp</span>
                   </motion.button>
@@ -746,10 +790,10 @@ export default function CheckoutConfirmationModal({
                       setPaymentMethod('credit'); 
                       if (setIsCredit) setIsCredit(true); 
                     }}
-                    className={`p-3 rounded-xl font-bold flex flex-col items-center justify-center gap-1.5 transition-all text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 border ${
+                    className={`p-4 rounded-2xl font-bold flex flex-col items-center justify-center gap-2 transition-all text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 border ${
                       paymentMethod === 'credit'
-                        ? 'bg-amber-50 dark:bg-amber-500/10 border-amber-500 text-amber-700 dark:text-amber-400 shadow-[0_2px_8px_rgba(245,158,11,0.15)]'
-                        : 'bg-white dark:bg-slate-800 border-slate-200/50 dark:border-slate-700/50 text-slate-500 dark:text-slate-400 hover:border-amber-300 dark:hover:border-amber-700/50 shadow-sm'
+                        ? 'bg-gradient-to-br from-amber-500 to-orange-500 text-white border-transparent shadow-lg shadow-amber-500/30'
+                        : 'bg-white/40 dark:bg-slate-800/40 border-white/40 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:bg-white/70 dark:hover:bg-slate-700/50 shadow-sm'
                     }`}
                     aria-label="Thanh toán ghi nợ"
                   >
@@ -773,7 +817,7 @@ export default function CheckoutConfirmationModal({
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
                     transition={{ duration: 0.15 }}
-                    className="bg-amber-50 dark:bg-amber-500/10 border border-amber-500/20 rounded-2xl p-6 text-center"
+                    className="glass-panel border border-amber-500/30 rounded-2xl p-6 text-center"
                   >
                     <CreditCard className="mx-auto text-amber-500 mb-4" size={48} />
                     <h3 className="text-lg font-bold text-amber-700 dark:text-amber-400 mb-2">Đơn Hàng Ghi Nợ</h3>
@@ -831,7 +875,7 @@ export default function CheckoutConfirmationModal({
                                 if (setIsCredit) setIsCredit(nextMethod === 'credit');
                               }
                             }}
-                            className="w-full px-4 py-3 bg-sky-50/50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 rounded-xl text-2xl sm:text-3xl font-black text-sky-700 dark:text-sky-400 focus:outline-none focus:bg-white dark:focus:bg-slate-950 focus:border-sky-500 dark:focus:border-sky-500 focus:ring-4 focus:ring-sky-500/20 transition-all font-mono shadow-inner"
+                            className="w-full px-5 py-4 bg-white/70 dark:bg-black/30 border border-white/60 dark:border-white/10 rounded-2xl text-3xl sm:text-4xl font-black text-sky-600 dark:text-sky-400 focus:outline-none focus:bg-white focus:ring-4 focus:ring-sky-500/20 transition-all font-mono shadow-inner tracking-wider"
                             placeholder="VD: 50,000..."
                             aria-label="Tiền mặt khách đưa"
                           />
@@ -846,7 +890,7 @@ export default function CheckoutConfirmationModal({
                               key={idx}
                               type="button"
                               onClick={() => handleQuickCash(opt.value)}
-                              className="flex-1 min-w-[90px] px-2 py-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                              className="flex-1 min-w-[90px] px-2 py-2 glass-button hover:border-sky-500/50 text-slate-800 dark:text-slate-200 font-bold text-xs rounded-lg border border-white/10 shadow-sm transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
                             >
                               {opt.label}
                             </motion.button>
@@ -897,7 +941,7 @@ export default function CheckoutConfirmationModal({
                                 setCashReceived(new Intl.NumberFormat('en-US').format(num * 1000));
                               }
                             }}
-                            className="w-full px-4 py-3 bg-indigo-50/50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 rounded-xl text-2xl sm:text-3xl font-black text-indigo-700 dark:text-indigo-400 focus:outline-none focus:bg-white dark:focus:bg-slate-950 focus:border-indigo-500 dark:focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20 transition-all font-mono shadow-inner"
+                            className="w-full px-4 py-3 glass-input rounded-xl text-2xl sm:text-3xl font-black text-indigo-700 dark:text-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/20 transition-all font-mono shadow-inner"
                             placeholder="Nhập số tiền mặt..."
                           />
                         </div>
@@ -911,7 +955,7 @@ export default function CheckoutConfirmationModal({
                               key={idx}
                               type="button"
                               onClick={() => handleQuickCash(opt.value)}
-                              className="flex-1 min-w-[90px] px-2 py-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                              className="flex-1 min-w-[90px] px-2 py-2 glass-button hover:border-indigo-500/50 text-slate-800 dark:text-slate-200 font-bold text-xs rounded-lg border border-white/10 shadow-sm transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                             >
                               {opt.label}
                             </motion.button>
@@ -927,7 +971,7 @@ export default function CheckoutConfirmationModal({
                               transition={{ duration: 0.2 }}
                               className="overflow-hidden mt-3"
                             >
-                              <div className="bg-white p-3.5 rounded-3xl shadow-md border border-slate-200/50 dark:border-slate-800/50 flex gap-4 items-center justify-between">
+                              <div className="glass-card p-3.5 rounded-3xl shadow-md border border-white/10 flex gap-4 items-center justify-between">
                                 <div className="text-left pl-2">
                                   <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">Cần chuyển khoản thêm:</span>
                                   <div className="text-2xl font-black text-indigo-600 font-mono">
@@ -956,7 +1000,7 @@ export default function CheckoutConfirmationModal({
                       >
                         {/* QR Code Scannable Container */}
                         <motion.div 
-                          className="bg-white p-3.5 rounded-3xl shadow-xl border border-slate-200/50 dark:border-slate-800/50 relative cursor-pointer min-h-[252px] min-w-[252px] flex items-center justify-center"
+                          className="glass-card p-3.5 rounded-3xl shadow-xl border border-white/10 relative cursor-pointer min-h-[252px] min-w-[252px] flex items-center justify-center"
                           whileHover={{ scale: 1.1, zIndex: 50, y: -5 }}
                           whileTap={{ scale: 0.98 }}
                           transition={{ type: 'spring', damping: 20, stiffness: 300 }}
@@ -966,7 +1010,7 @@ export default function CheckoutConfirmationModal({
                             <div className="relative group">
                               <img src={qrUrl} alt="Mã VietQR" className="w-56 h-56 object-contain rounded-2xl transition-opacity" />
                               <div className="absolute inset-0 bg-black/5 dark:bg-white/5 rounded-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                <span className="text-[10px] font-bold bg-white/90 dark:bg-slate-900/90 text-slate-800 dark:text-slate-200 px-2.5 py-1.5 rounded-full shadow-sm backdrop-blur-sm uppercase tracking-wider">Bấm để phóng to ra giữa màn hình</span>
+                                <span className="text-[10px] font-bold glass-panel text-slate-800 dark:text-slate-200 px-2.5 py-1.5 rounded-full shadow-sm uppercase tracking-wider">Bấm để phóng to ra giữa màn hình</span>
                               </div>
                             </div>
                           ) : (
@@ -975,7 +1019,7 @@ export default function CheckoutConfirmationModal({
                           
                           {/* Warning if Bank is not configured */}
                           {(!bankInfo?.acc || bankInfo?.acc === '000000000') && (
-                            <div className="absolute inset-0 bg-white/95 dark:bg-slate-950/95 backdrop-blur-sm flex flex-col items-center justify-center text-center p-6 rounded-3xl">
+                            <div className="absolute inset-0 glass-panel flex flex-col items-center justify-center text-center p-6 rounded-3xl">
                               <AlertTriangle className="text-rose-500 mb-2" size={24} />
                               <p className="text-rose-600 dark:text-rose-400 font-bold mb-1">Chưa Cài Đặt VietQR</p>
                               <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">Nhân viên cần truy cập mục <strong>Cài Đặt</strong> để nhập số tài khoản ngân hàng thụ hưởng trước.</p>
@@ -1038,7 +1082,7 @@ export default function CheckoutConfirmationModal({
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="bg-white dark:bg-slate-900 p-8 rounded-[2rem] shadow-2xl max-w-lg w-full text-center relative flex flex-col items-center border border-slate-200/50 dark:border-slate-800/50"
+              className="glass-card p-8 rounded-[2rem] shadow-2xl max-w-lg w-full text-center relative flex flex-col items-center border border-white/10"
               onClick={(e) => e.stopPropagation()} // Prevent click from bubbling to backdrop
             >
               <button
@@ -1052,7 +1096,7 @@ export default function CheckoutConfirmationModal({
                 <QrCode size={24} /> Quét Mã Thanh Toán
               </h3>
               
-              <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200/50 dark:border-slate-800/50 mb-6">
+              <div className="glass-panel p-6 rounded-3xl shadow-sm border border-white/10 mb-6">
                 <img src={qrUrl} alt="Mã VietQR Phóng To" className="w-80 h-80 object-contain rounded-2xl" />
               </div>
 

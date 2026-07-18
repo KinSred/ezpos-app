@@ -6,27 +6,71 @@ import HistoryReportsScreen from './features/history/HistoryReportsScreen';
 import CustomersScreen from './features/customers/CustomersScreen';
 import RemoteScanner from './features/settings/components/RemoteScanner';
 import PromotionsScreen from './features/promotions/PromotionsScreen';
-import { ShoppingCart, Package, Settings, BarChart3, Users, Sun, Moon, Truck, Smartphone, Tag } from 'lucide-react';
+import StaffScreen from './features/staff/StaffScreen';
+import { ShoppingCart, Package, Settings, BarChart3, Users, Sun, Moon, Truck, Smartphone, Tag, UserCog, LogOut, Lock } from 'lucide-react';
 import { Toaster } from 'react-hot-toast';
 import { db } from './db';
 import { restoreBackupData } from './utils/backup';
+import AppLogo from './components/AppLogo';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import SyncHost from './features/settings/components/SyncHost';
+import { useAuth } from './contexts/AuthContext';
+import LockScreen from './components/LockScreen';
+import StartShiftModal from './components/StartShiftModal';
+import EndShiftModal from './components/EndShiftModal';
+
+const LiquidBackground = () => (
+  <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
+    {/* Dark mode base */}
+    <div className="absolute inset-0 bg-slate-50 dark:bg-[#050505] transition-colors duration-700" />
+    
+    {/* Animated Orbs */}
+    <motion.div
+      className="absolute -top-40 -left-40 w-96 h-96 bg-purple-400/30 dark:bg-purple-900/20 rounded-full blur-3xl mix-blend-multiply dark:mix-blend-lighten"
+      animate={{
+        x: [0, 100, 0],
+        y: [0, 50, 0],
+        scale: [1, 1.2, 1],
+      }}
+      transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
+    />
+    <motion.div
+      className="absolute top-20 right-0 w-[500px] h-[500px] bg-sky-300/30 dark:bg-sky-900/20 rounded-full blur-3xl mix-blend-multiply dark:mix-blend-lighten"
+      animate={{
+        x: [0, -100, 0],
+        y: [0, 100, 0],
+        scale: [1, 1.5, 1],
+      }}
+      transition={{ duration: 20, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+    />
+    <motion.div
+      className="absolute -bottom-40 left-20 w-[600px] h-[600px] bg-indigo-300/30 dark:bg-indigo-900/20 rounded-full blur-3xl mix-blend-multiply dark:mix-blend-lighten"
+      animate={{
+        x: [0, 150, 0],
+        y: [0, -100, 0],
+        scale: [1, 1.1, 1],
+      }}
+      transition={{ duration: 18, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+    />
+  </div>
+);
 
 function App() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { currentUser, currentShift, loading: authLoading, logout } = useAuth();
+  const [showEndShift, setShowEndShift] = useState(false);
   
   const currentPath = location.pathname;
   let currentTab = 'pos';
-  if (currentPath === '/wholesale') currentTab = 'wholesale';
-  else if (currentPath === '/history') currentTab = 'history';
+  if (currentPath === '/history') currentTab = 'history';
   else if (currentPath === '/inventory') currentTab = 'inventory';
   else if (currentPath === '/promotions') currentTab = 'promotions';
   else if (currentPath === '/customers') currentTab = 'customers';
+  else if (currentPath === '/staff') currentTab = 'staff';
   else if (currentPath === '/settings') currentTab = 'settings';
 
   // Theme state
@@ -86,34 +130,53 @@ function App() {
     );
   }
 
+  if (authLoading) {
+    return <div className="h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-900"><div className="animate-spin w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full"></div></div>;
+  }
+
+  if (!currentUser) {
+    return (
+      <>
+        <LockScreen />
+        <Toaster position="bottom-center" />
+      </>
+    );
+  }
+
+  const isAdmin = currentUser?.role === 'admin';
+
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-transparent transition-colors duration-500">
+    <div className="flex flex-col h-screen overflow-hidden bg-transparent transition-colors duration-500 relative">
+      <LiquidBackground />
+      <StartShiftModal isOpen={!currentShift} />
+      {showEndShift && <EndShiftModal onClose={() => setShowEndShift(false)} />}
+      
       {/* Top Navigation Bar */}
-      <header className="glass-card z-20 flex-shrink-0 no-print rounded-2xl mx-4 mt-4 border border-slate-200/30 dark:border-slate-800/30 shadow-[0_8px_30px_rgb(0,0,0,0.02)] dark:shadow-none">
+      <header className="glass-card z-20 flex-shrink-0 no-print rounded-3xl mx-4 mt-4 shadow-lg">
         <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3 text-slate-850 dark:text-white font-extrabold text-lg sm:text-xl tracking-tight">
-            <div className="bg-gradient-to-tr from-indigo-500 to-sky-500 text-white p-2.5 rounded-xl shadow-md shadow-indigo-500/20">
-              <ShoppingCart size={18} />
+            <div className="p-1.5 glass-panel rounded-xl">
+              <AppLogo className="w-6 h-6" />
             </div>
-            <span className="hidden sm:inline bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-200 bg-clip-text text-transparent">Tạp Hóa Hồng Ngọc</span>
+            <span className="hidden sm:inline bg-gradient-to-r from-slate-800 to-slate-600 dark:from-white dark:to-slate-300 bg-clip-text text-transparent drop-shadow-sm">EzPOS</span>
           </div>
 
           <div className="flex items-center gap-2 sm:gap-4 overflow-x-auto py-2">
             {/* Segmented Control for Navigation */}
-            <nav className="relative flex bg-slate-100/80 dark:bg-slate-950/40 p-1 rounded-xl shadow-inner border border-slate-200/30 dark:border-slate-800/30">
+            <nav className="relative flex glass-panel p-1.5 rounded-2xl">
               <motion.button
                 whileTap={{ scale: 0.96 }}
                 onClick={() => navigate('/')}
-                className={`relative flex items-center px-3 sm:px-4 py-1.5 rounded-lg font-bold text-xs sm:text-sm transition-colors duration-300 focus:outline-none ${currentTab === 'pos'
-                  ? 'text-white'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                className={`relative flex items-center px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition-colors duration-300 focus:outline-none ${currentTab === 'pos'
+                  ? 'text-slate-800 dark:text-white drop-shadow-md'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
                   }`}
                 aria-label="Màn hình bán lẻ"
               >
                 {currentTab === 'pos' && (
                   <motion.div
                     layoutId="activeTabUnderlay"
-                    className="absolute inset-0 bg-gradient-to-r from-sky-500 to-blue-600 rounded-lg shadow-md shadow-sky-500/20 z-0"
+                    className="absolute inset-0 bg-white/60 dark:bg-white/10 backdrop-blur-md rounded-xl shadow-[0_2px_10px_rgba(0,0,0,0.05)] dark:shadow-[0_2px_10px_rgba(0,0,0,0.3)] border border-white/80 dark:border-white/20 z-0"
                     transition={{ type: 'spring', stiffness: 380, damping: 30 }}
                   />
                 )}
@@ -123,63 +186,46 @@ function App() {
                 </span>
               </motion.button>
 
-              <motion.button
-                whileTap={{ scale: 0.96 }}
-                onClick={() => navigate('/wholesale')}
-                className={`relative flex items-center px-3 sm:px-4 py-1.5 rounded-lg font-bold text-xs sm:text-sm transition-colors duration-300 focus:outline-none ${currentTab === 'wholesale'
-                  ? 'text-white'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-                  }`}
-                aria-label="Màn hình giao sỉ"
-              >
-                {currentTab === 'wholesale' && (
-                  <motion.div
-                    layoutId="activeTabUnderlay"
-                    className="absolute inset-0 bg-gradient-to-r from-amber-500 to-orange-600 rounded-lg shadow-md shadow-amber-500/20 z-0"
-                    transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                  />
-                )}
-                <span className="relative z-10 flex items-center gap-2 pointer-events-none">
-                  <Truck size={15} />
-                  <span className="hidden md:inline">Giao Sỉ</span>
-                </span>
-              </motion.button>
 
-              <motion.button
-                whileTap={{ scale: 0.96 }}
-                onClick={() => navigate('/history')}
-                className={`relative flex items-center px-3 sm:px-4 py-1.5 rounded-lg font-bold text-xs sm:text-sm transition-colors duration-300 focus:outline-none ${currentTab === 'history'
-                  ? 'text-white'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-                  }`}
-                aria-label="Màn hình báo cáo"
-              >
-                {currentTab === 'history' && (
-                  <motion.div
-                    layoutId="activeTabUnderlay"
-                    className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-lg shadow-md shadow-indigo-500/20 z-0"
-                    transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                  />
-                )}
-                <span className="relative z-10 flex items-center gap-2 pointer-events-none">
-                  <BarChart3 size={15} />
-                  <span className="hidden md:inline">Báo Cáo</span>
-                </span>
-              </motion.button>
 
-              <motion.button
-                whileTap={{ scale: 0.96 }}
+              {isAdmin && (
+                <motion.button
+                  whileTap={{ scale: 0.96 }}
+                  onClick={() => navigate('/history')}
+                  className={`relative flex items-center px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition-colors duration-300 focus:outline-none ${currentTab === 'history'
+                    ? 'text-slate-800 dark:text-white drop-shadow-md'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                    }`}
+                  aria-label="Màn hình báo cáo"
+                >
+                  {currentTab === 'history' && (
+                    <motion.div
+                      layoutId="activeTabUnderlay"
+                      className="absolute inset-0 bg-white/60 dark:bg-white/10 backdrop-blur-md rounded-xl shadow-[0_2px_10px_rgba(0,0,0,0.05)] dark:shadow-[0_2px_10px_rgba(0,0,0,0.3)] border border-white/80 dark:border-white/20 z-0"
+                      transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                    />
+                  )}
+                  <span className="relative z-10 flex items-center gap-2 pointer-events-none">
+                    <BarChart3 size={15} />
+                    <span className="hidden md:inline">Báo Cáo</span>
+                  </span>
+                </motion.button>
+              )}
+
+              {isAdmin && (
+                <motion.button
+                  whileTap={{ scale: 0.96 }}
                 onClick={() => navigate('/inventory')}
-                className={`relative flex items-center px-3 sm:px-4 py-1.5 rounded-lg font-bold text-xs sm:text-sm transition-colors duration-300 focus:outline-none ${currentTab === 'inventory'
-                  ? 'text-white'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                className={`relative flex items-center px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition-colors duration-300 focus:outline-none ${currentTab === 'inventory'
+                  ? 'text-slate-800 dark:text-white drop-shadow-md'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
                   }`}
                 aria-label="Màn hình kho hàng"
               >
                 {currentTab === 'inventory' && (
                   <motion.div
                     layoutId="activeTabUnderlay"
-                    className="absolute inset-0 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-lg shadow-md shadow-emerald-500/20 z-0"
+                    className="absolute inset-0 bg-white/60 dark:bg-white/10 backdrop-blur-md rounded-xl shadow-[0_2px_10px_rgba(0,0,0,0.05)] dark:shadow-[0_2px_10px_rgba(0,0,0,0.3)] border border-white/80 dark:border-white/20 z-0"
                     transition={{ type: 'spring', stiffness: 380, damping: 30 }}
                   />
                 )}
@@ -196,20 +242,21 @@ function App() {
                   <span className="hidden md:inline">Kho Hàng</span>
                 </span>
               </motion.button>
+              )}
 
               <motion.button
                 whileTap={{ scale: 0.96 }}
                 onClick={() => navigate('/promotions')}
-                className={`relative flex items-center px-3 sm:px-4 py-1.5 rounded-lg font-bold text-xs sm:text-sm transition-colors duration-300 focus:outline-none ${currentTab === 'promotions'
-                  ? 'text-white'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                className={`relative flex items-center px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition-colors duration-300 focus:outline-none ${currentTab === 'promotions'
+                  ? 'text-slate-800 dark:text-white drop-shadow-md'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
                   }`}
                 aria-label="Màn hình khuyến mãi"
               >
                 {currentTab === 'promotions' && (
                   <motion.div
                     layoutId="activeTabUnderlay"
-                    className="absolute inset-0 bg-gradient-to-r from-rose-500 to-pink-600 rounded-lg shadow-md shadow-rose-500/20 z-0"
+                    className="absolute inset-0 bg-white/60 dark:bg-white/10 backdrop-blur-md rounded-xl shadow-[0_2px_10px_rgba(0,0,0,0.05)] dark:shadow-[0_2px_10px_rgba(0,0,0,0.3)] border border-white/80 dark:border-white/20 z-0"
                     transition={{ type: 'spring', stiffness: 380, damping: 30 }}
                   />
                 )}
@@ -222,17 +269,17 @@ function App() {
               <motion.button
                 whileTap={{ scale: 0.96 }}
                 onClick={() => navigate('/customers')}
-                className={`relative flex items-center px-3 sm:px-4 py-1.5 rounded-lg font-bold text-xs sm:text-sm transition-colors duration-300 focus:outline-none ${currentTab === 'customers'
-                  ? 'text-white'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-                  }`}
+                  className={`relative flex items-center px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition-colors duration-300 focus:outline-none ${currentTab === 'customers'
+                    ? 'text-slate-800 dark:text-white drop-shadow-md'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                    }`}
                 aria-label="Màn hình công nợ"
               >
                 {currentTab === 'customers' && (
                   <motion.div
-                    layoutId="activeTabUnderlay"
-                    className="absolute inset-0 bg-gradient-to-r from-violet-500 to-fuchsia-600 rounded-lg shadow-md shadow-violet-500/20 z-0"
-                    transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                      layoutId="activeTabUnderlay"
+                      className="absolute inset-0 bg-white/60 dark:bg-white/10 backdrop-blur-md rounded-xl shadow-[0_2px_10px_rgba(0,0,0,0.05)] dark:shadow-[0_2px_10px_rgba(0,0,0,0.3)] border border-white/80 dark:border-white/20 z-0"
+                      transition={{ type: 'spring', stiffness: 380, damping: 30 }}
                   />
                 )}
                 <span className="relative z-10 flex items-center gap-2 pointer-events-none">
@@ -241,27 +288,53 @@ function App() {
                 </span>
               </motion.button>
 
-              <motion.button
-                whileTap={{ scale: 0.96 }}
-                onClick={() => navigate('/settings')}
-                className={`relative flex items-center px-3 sm:px-4 py-1.5 rounded-lg font-bold text-xs sm:text-sm transition-colors duration-300 focus:outline-none ${currentTab === 'settings'
-                  ? 'text-white'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-                  }`}
-                aria-label="Màn hình cài đặt"
-              >
-                {currentTab === 'settings' && (
-                  <motion.div
-                    layoutId="activeTabUnderlay"
-                    className="absolute inset-0 bg-gradient-to-r from-slate-600 to-slate-700 rounded-lg shadow-md shadow-slate-600/20 z-0"
-                    transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                  />
-                )}
-                <span className="relative z-10 flex items-center gap-2 pointer-events-none">
-                  <Settings size={15} />
-                  <span className="hidden md:inline">Cài Đặt</span>
-                </span>
-              </motion.button>
+              {isAdmin && (
+                <motion.button
+                  whileTap={{ scale: 0.96 }}
+                  onClick={() => navigate('/staff')}
+                  className={`relative flex items-center px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition-colors duration-300 focus:outline-none ${currentTab === 'staff'
+                    ? 'text-slate-800 dark:text-white drop-shadow-md'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                    }`}
+                  aria-label="Quản lý nhân viên"
+                >
+                  {currentTab === 'staff' && (
+                    <motion.div
+                      layoutId="activeTabUnderlay"
+                      className="absolute inset-0 bg-white/60 dark:bg-white/10 backdrop-blur-md rounded-xl shadow-[0_2px_10px_rgba(0,0,0,0.05)] dark:shadow-[0_2px_10px_rgba(0,0,0,0.3)] border border-white/80 dark:border-white/20 z-0"
+                      transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                    />
+                  )}
+                  <span className="relative z-10 flex items-center gap-2 pointer-events-none">
+                    <UserCog size={15} />
+                    <span className="hidden md:inline">Nhân Viên</span>
+                  </span>
+                </motion.button>
+              )}
+
+              {isAdmin && (
+                <motion.button
+                  whileTap={{ scale: 0.96 }}
+                  onClick={() => navigate('/settings')}
+                  className={`relative flex items-center px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition-colors duration-300 focus:outline-none ${currentTab === 'settings'
+                    ? 'text-slate-800 dark:text-white drop-shadow-md'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                    }`}
+                  aria-label="Màn hình cài đặt"
+                >
+                  {currentTab === 'settings' && (
+                    <motion.div
+                      layoutId="activeTabUnderlay"
+                      className="absolute inset-0 bg-white/60 dark:bg-white/10 backdrop-blur-md rounded-xl shadow-[0_2px_10px_rgba(0,0,0,0.05)] dark:shadow-[0_2px_10px_rgba(0,0,0,0.3)] border border-white/80 dark:border-white/20 z-0"
+                      transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                    />
+                  )}
+                  <span className="relative z-10 flex items-center gap-2 pointer-events-none">
+                    <Settings size={15} />
+                    <span className="hidden md:inline">Cài Đặt</span>
+                  </span>
+                </motion.button>
+              )}
             </nav>
 
             {/* Mobile Sync Button */}
@@ -269,7 +342,7 @@ function App() {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => setShowSyncHost(true)}
-              className="p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 hover:dark:bg-slate-800 text-indigo-500 hover:text-indigo-650 dark:text-indigo-400 dark:hover:text-indigo-300 transition-all duration-300 focus:outline-none border border-slate-200/50 dark:border-slate-800/50 shadow-sm"
+              className="p-2.5 rounded-xl glass-button text-indigo-500 dark:text-indigo-400 focus:outline-none"
               aria-label="Đồng bộ điện thoại"
             >
               <Smartphone size={16} />
@@ -280,10 +353,40 @@ function App() {
               whileHover={{ scale: 1.05, rotate: 15 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => setTheme(prev => prev === 'light' ? 'dark' : 'light')}
-              className="p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 hover:dark:bg-slate-800 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 transition-all duration-300 focus:outline-none border border-slate-200/50 dark:border-slate-800/50 shadow-sm"
+              className="p-2.5 rounded-xl glass-button text-slate-600 dark:text-slate-300 focus:outline-none"
               aria-label="Chuyển chế độ tối sáng"
             >
               {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
+            </motion.button>
+
+            {/* End Shift Button */}
+            {currentShift && (
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setShowEndShift(true)}
+                className="flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl glass-button text-amber-600 dark:text-amber-400 font-bold focus:outline-none text-xs sm:text-sm"
+              >
+                <LogOut size={16} className="hidden sm:block" />
+                <span>Giao Ca</span>
+              </motion.button>
+            )}
+
+            {/* Lock Screen Button */}
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => {
+                if (currentShift) {
+                  toast('Ca làm việc vẫn đang mở', { icon: '🔒' });
+                }
+                logout();
+              }}
+              className="flex items-center gap-2 p-2 sm:px-4 sm:py-2 rounded-xl glass-button text-slate-600 dark:text-slate-300 focus:outline-none text-xs sm:text-sm font-bold"
+              aria-label="Khóa máy"
+            >
+              <Lock size={16} />
+              <span className="hidden sm:block">Khóa Máy</span>
             </motion.button>
           </div>
         </div>
@@ -294,14 +397,13 @@ function App() {
         <div className={`h-full ${currentTab === 'pos' ? 'block' : 'hidden'}`}>
           <POSScreen key="retail" mode="retail" isActive={currentTab === 'pos'} />
         </div>
-        <div className={`h-full ${currentTab === 'wholesale' ? 'block' : 'hidden'}`}>
-          <POSScreen key="wholesale" mode="wholesale" isActive={currentTab === 'wholesale'} />
-        </div>
-        {currentTab === 'history' && <HistoryReportsScreen />}
-        {currentTab === 'inventory' && <InventoryScreen />}
+
+        {currentTab === 'history' && isAdmin && <HistoryReportsScreen />}
+        {currentTab === 'inventory' && isAdmin && <InventoryScreen />}
         {currentTab === 'promotions' && <PromotionsScreen />}
         {currentTab === 'customers' && <CustomersScreen />}
-        {currentTab === 'settings' && <SettingsScreen />}
+        {currentTab === 'staff' && isAdmin && <StaffScreen />}
+        {currentTab === 'settings' && isAdmin && <SettingsScreen />}
       </main>
 
       <Toaster

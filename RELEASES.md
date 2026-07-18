@@ -4,6 +4,15 @@
 
 ---
 
+## [v1.0.3] - 2026-07-18
+### ✨ Cải tiến Giao diện & Tối ưu hóa (UI/UX & Performance)
+- **Nâng cấp giao diện "Liquid Glass" cao cấp:** Thiết kế lại toàn bộ màn hình Thu Ngân (Giỏ hàng & Quét mã) và Bảng Xác Nhận Đơn Hàng theo phong cách kính mờ trong suốt (Glassmorphism), mang lại cảm giác hiện đại, chuyên nghiệp và liền mạch.
+- **Tối ưu hóa hiệu năng (Chống giật lag):** Áp dụng kỹ thuật `React.memo` và cấu trúc lại các thẻ CSS (loại bỏ lồng ghép `backdrop-blur`) trong Modal Thanh Toán, giúp thao tác nhập liệu tiền khách đưa mượt mà tuyệt đối không còn bị giật khựng.
+- **Làm sạch mã nguồn UI:** Gỡ bỏ các tính năng dư thừa (như Thu gọn giỏ hàng) và các hộp viền xám thô cứng, tối đa hóa không gian hiển thị thông tin.
+- **Sửa lỗi hiển thị:** Khắc phục lỗi màn hình trắng khi mở Bảng Thanh Toán do thiếu sót biến dữ liệu điểm thưởng (`pointsUsed`).
+
+---
+
 ## [v1.0.2] - 2026-07-17
 ### ✨ Cập nhật mã nguồn & Tối ưu hóa (Refactoring & Security)
 - **Tái cấu trúc toàn diện (Phase 1 & Phase 2):** Chuyển đổi kiến trúc sang dạng `Feature-based`. Chia nhỏ thành công các "Component khổng lồ" nghìn dòng (như `InventoryScreen`, `HistoryReportsScreen`, `CustomersScreen`) thành các Sub-component độc lập, giúp mã nguồn cực kì gọn gàng, siêu dễ bảo trì và nâng cấp sau này.

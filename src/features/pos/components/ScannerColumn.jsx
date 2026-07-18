@@ -67,9 +67,9 @@ export default function ScannerColumn({ onScan, onSelectProduct, onAddProduct, i
       aria-label="Cột máy quét mã vạch và tìm kiếm"
     >
       {/* Header */}
-      <div className="px-6 py-5 border-b border-slate-200/50 dark:border-slate-800/50 flex items-center justify-between flex-shrink-0 bg-white/40 dark:bg-slate-900/40 backdrop-blur-md">
+      <div className="px-6 py-5 border-b border-white/10 flex items-center justify-between flex-shrink-0 glass-panel">
         <h2 className="font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2 text-base">
-          <div className="bg-sky-500 text-white p-1.5 rounded-xl shadow-[0_2px_10px_rgba(14,165,233,0.3)]">
+          <div className="glass-card text-sky-500 p-1.5 rounded-xl shadow-sm border border-sky-500/20">
             <ScanLine size={18} strokeWidth={2.5} />
           </div>
           Tìm Kiếm & Quét Mã
@@ -77,7 +77,7 @@ export default function ScannerColumn({ onScan, onSelectProduct, onAddProduct, i
         <div className="flex gap-2">
           <button 
             onClick={onAddProduct}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-600 dark:bg-sky-500/10 dark:hover:bg-sky-500/20 dark:text-sky-400 transition-all text-xs font-bold focus:outline-none focus:ring-2 focus:ring-sky-500/50 active:scale-[0.96]"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl glass-button text-sky-600 dark:text-sky-400 transition-all text-xs font-bold focus:outline-none focus:ring-2 focus:ring-sky-500/50 active:scale-[0.96] border border-sky-500/20"
             aria-label="Thêm mới sản phẩm"
           >
             <Package size={14} />
@@ -87,7 +87,7 @@ export default function ScannerColumn({ onScan, onSelectProduct, onAddProduct, i
       </div>
 
       {/* Search Bar */}
-      <div className="px-6 py-4 border-b border-slate-200/50 dark:border-slate-800/50 flex-shrink-0">
+      <div className="px-6 py-4 border-b border-white/10 flex-shrink-0">
         <div className="relative group">
           <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
             <Search className="text-slate-400 group-focus-within:text-sky-500 transition-colors" size={18} />
@@ -114,14 +114,14 @@ export default function ScannerColumn({ onScan, onSelectProduct, onAddProduct, i
                 e.target.blur();
               }
             }}
-            className="w-full pl-12 pr-12 py-4 bg-white/80 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80 rounded-2xl text-lg font-bold text-slate-800 dark:text-slate-100 placeholder:text-slate-400 placeholder:text-sm placeholder:font-normal focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500/50 shadow-sm transition-all"
+            className="w-full pl-12 pr-12 py-4 glass-input rounded-2xl text-lg font-bold text-slate-800 dark:text-slate-100 placeholder:text-slate-500/70 placeholder:text-sm placeholder:font-normal focus:outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 shadow-sm transition-all"
             placeholder="Tìm tên hoặc mã vạch sản phẩm..."
             aria-label="Tìm kiếm sản phẩm"
           />
           {searchQuery && (
             <button 
               onClick={() => setSearchQuery('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-rose-500 bg-slate-100 dark:bg-slate-700 hover:bg-rose-50 dark:hover:bg-rose-500/20 p-1 rounded-full transition-all active:scale-[0.96] focus:outline-none focus:ring-2 focus:ring-rose-500/50"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-rose-500 glass-button p-1 rounded-full transition-all active:scale-[0.96] focus:outline-none border border-white/10"
               aria-label="Xóa từ khóa tìm kiếm"
             >
               <X size={14} />
@@ -152,13 +152,11 @@ export default function ScannerColumn({ onScan, onSelectProduct, onAddProduct, i
             />
           </div>
 
-          <motion.div 
-            whileHover={{ scale: 1.06, y: -4 }}
-            whileTap={{ scale: 0.96 }}
-            className="relative z-10 w-32 h-32 mb-6 rounded-[2.25rem] bg-white/90 dark:bg-slate-900/90 shadow-[0_20px_50px_rgba(14,165,233,0.12)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.4)] border border-slate-200/50 dark:border-slate-800/80 flex flex-col items-center justify-center cursor-pointer group overflow-hidden"
+          <motion.div
+            className="relative z-10 w-32 h-32 mb-6 rounded-[2.25rem] glass-card shadow-lg flex flex-col items-center justify-center cursor-pointer group overflow-hidden"
             onClick={() => document.querySelector('input[placeholder*="Tìm tên"]').focus()}
           >
-            <div className="absolute inset-0 bg-gradient-to-br from-sky-500/10 to-indigo-500/10 rounded-[2.25rem] group-hover:opacity-100 transition-opacity"></div>
+            <div className="absolute inset-0 bg-gradient-to-br from-sky-500/5 to-indigo-500/5 rounded-[2.25rem] group-hover:opacity-100 transition-opacity"></div>
             <div className="relative p-4 flex flex-col items-center justify-center">
               <motion.div
                 className="relative"
@@ -197,7 +195,7 @@ export default function ScannerColumn({ onScan, onSelectProduct, onAddProduct, i
         <div className="flex-1 overflow-y-auto p-4 space-y-2">
           <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3 px-2 flex items-center justify-between">
             <span>Kết quả tìm kiếm</span>
-            <span className="bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded-md text-xs font-black">{searchResults.length}</span>
+            <span className="glass-panel text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded-md text-xs font-black">{searchResults.length}</span>
           </div>
           <motion.div
             initial="hidden"
@@ -221,7 +219,7 @@ export default function ScannerColumn({ onScan, onSelectProduct, onAddProduct, i
                   onSelectProduct(product);
                   setSearchQuery('');
                 }}
-                className="w-full text-left p-4 bg-white/60 dark:bg-slate-800/40 hover:bg-white dark:hover:bg-slate-800 border border-slate-200/50 dark:border-slate-700/50 rounded-2xl shadow-sm hover:shadow-md flex items-center justify-between transition-all group focus:outline-none focus:ring-2 focus:ring-sky-500"
+                className="w-full text-left p-4 glass-card hover:border-sky-500/50 rounded-2xl shadow-sm hover:shadow-md flex items-center justify-between transition-all group focus:outline-none focus:ring-2 focus:ring-sky-500"
               >
                 <div className="flex-1 min-w-0 pr-3">
                   <div className="font-extrabold text-slate-850 dark:text-slate-100 text-base truncate group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors">
@@ -236,7 +234,7 @@ export default function ScannerColumn({ onScan, onSelectProduct, onAddProduct, i
                     </span>
                   </div>
                 </div>
-                <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900 border border-slate-250/20 dark:border-slate-700/30 text-xs font-black text-slate-600 dark:text-slate-300 px-4 py-2.5 rounded-xl shadow-sm group-hover:bg-sky-500 group-hover:border-sky-500 group-hover:text-white dark:group-hover:bg-sky-500 dark:group-hover:border-sky-500 dark:group-hover:text-white transition-all flex-shrink-0">
+                <div className="flex items-center gap-1 glass-button text-xs font-black text-slate-600 dark:text-slate-300 px-4 py-2.5 rounded-xl shadow-sm group-hover:bg-sky-500 group-hover:border-sky-500 group-hover:text-white dark:group-hover:bg-sky-500 dark:group-hover:border-sky-500 dark:group-hover:text-white transition-all flex-shrink-0">
                   Thêm
                 </div>
               </motion.button>
@@ -249,7 +247,7 @@ export default function ScannerColumn({ onScan, onSelectProduct, onAddProduct, i
           animate={{ opacity: 1, scale: 1 }}
           className="flex-1 flex flex-col items-center justify-center p-8 text-center"
         >
-          <div className="w-20 h-20 bg-slate-100/50 dark:bg-slate-800/40 rounded-full flex items-center justify-center mb-4 border border-slate-200/20 dark:border-slate-700/20">
+          <div className="w-20 h-20 glass-card rounded-full flex items-center justify-center mb-4">
             <Package size={32} className="text-slate-400 dark:text-slate-500" />
           </div>
           <h4 className="text-base font-extrabold text-slate-800 dark:text-slate-100 mb-1.5">Không tìm thấy sản phẩm</h4>

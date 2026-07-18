@@ -318,13 +318,13 @@ export default function CustomersScreen() {
 
         <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
           <div className="relative w-full sm:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-sky-600 dark:text-cyan-400" size={18} />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-sky-600 dark:text-cyan-400" size={18} />
             <input 
               type="text" 
               placeholder="Tìm theo tên hoặc SĐT..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 glass-card rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400 transition-shadow text-sky-900 dark:text-sky-50 placeholder-slate-400"
+              className="w-full pl-12 pr-4 py-2.5 glass-input rounded-xl text-sm transition-shadow text-sky-900 dark:text-sky-50 placeholder-slate-400"
             />
           </div>
 
@@ -341,7 +341,7 @@ export default function CustomersScreen() {
       <div className="flex-1 glass-card rounded-3xl overflow-hidden flex flex-col transition-colors duration-500">
         <div className="flex-1 overflow-auto">
           <table className="w-full text-left border-collapse min-w-[600px]">
-            <thead className="text-xs font-bold text-sky-900 dark:text-sky-100 uppercase tracking-wider bg-sky-100/80 dark:bg-sky-950/80 backdrop-blur-sm sticky top-0 z-10 border-b border-sky-200/50 dark:border-sky-800/30">
+            <thead className="text-xs font-bold text-sky-900 dark:text-sky-100 uppercase tracking-wider glass-panel sticky top-0 z-10 border-b border-sky-200/50 dark:border-sky-800/30">
               <tr>
                 <th className="py-4 px-6 font-semibold uppercase tracking-wider">Khách Hàng</th>
                 <th className="py-4 px-6 font-semibold uppercase tracking-wider">Số Điện Thoại</th>
@@ -378,7 +378,7 @@ export default function CustomersScreen() {
                       <div className="flex justify-end items-center gap-2" onClick={(e) => e.stopPropagation()}>
                         <button
                           onClick={() => handleOpenSpecialPrices(customer)}
-                          className="px-3.5 py-2 bg-sky-50 dark:bg-sky-500/10 text-sky-600 dark:text-sky-400 hover:bg-sky-500 hover:text-white border border-sky-200 dark:border-sky-800/40 text-xs font-bold rounded-xl transition-all active:scale-[0.96] focus:outline-none focus:ring-2 focus:ring-sky-500/50"
+                          className="px-3.5 py-2 glass-button text-sky-600 dark:text-sky-400 border border-sky-200/30 dark:border-sky-800/30 text-xs font-bold rounded-xl transition-all"
                         >
                           Giá Riêng
                         </button>
@@ -390,11 +390,11 @@ export default function CustomersScreen() {
                             Trả Nợ
                           </button>
                         ) : (
-                          <span className="text-emerald-600 dark:text-emerald-400 text-xs font-bold bg-emerald-500/10 dark:bg-emerald-500/5 px-3.5 py-2 rounded-xl border border-emerald-500/10">Không nợ</span>
+                          <span className="text-emerald-600 dark:text-emerald-400 text-xs font-bold glass-panel px-3.5 py-2 rounded-xl border border-emerald-500/20">Không nợ</span>
                         )}
                         <button
                           onClick={(e) => handleOpenEdit(customer, e)}
-                          className="p-2 text-slate-400 hover:text-sky-500 hover:bg-sky-50 dark:hover:bg-sky-500/10 rounded-xl transition-colors"
+                          className="p-2 text-slate-400 glass-button rounded-xl transition-colors"
                           title="Chỉnh sửa thông tin"
                         >
                           <Edit2 size={16} />

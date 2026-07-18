@@ -1,4 +1,5 @@
 import Dexie from 'dexie';
+import { hashPin } from './utils/security';
 
 export const db = new Dexie('POSDatabase');
 
@@ -143,6 +144,47 @@ db.version(7).stores({
   if (transactions.length > 0) {
     await tx.table('customerTransactions').bulkAdd(transactions);
   }
+});
+
+// Version 8 schema: Add users, shifts, attendance, and update orders
+db.version(8).stores({
+  products: '++id, barcode, name, price, stock, unit, lowStockAlert, creditPrice, wholesalePrice, wholesaleCreditPrice, wholesaleUnit, wholesaleConversionRate, taxRate',
+  orders: '++id, timestamp, total, customerPhone, paymentStatus, totalTax, userId, shiftId',
+  settings: 'key, value',
+  customers: 'phone, name, points, debt',
+  promotions: '++id, name, type, isActive',
+  customerTransactions: '++id, customerPhone, timestamp, type, amount, remainingDebt',
+  users: '++id, username, pinHash, role, name, isActive',
+  shifts: '++id, userId, startTime, endTime, startingCash, expectedCash, actualCash, difference, status',
+  attendance: '++id, userId, clockIn, clockOut, date, totalHours'
+}).upgrade(async (tx) => {
+  // Seed default admin user if no users exist
+  const usersCount = await tx.table('users').count();
+  if (usersCount === 0) {
+    const defaultPinHash = await hashPin('0000');
+    await tx.table('users').add({
+      username: 'admin',
+      pinHash: defaultPinHash,
+      role: 'admin',
+      name: 'Chủ Cửa Hàng',
+      isActive: true
+    });
+  }
+});
+
+// Version 9 schema: Add suppliers and supplierTransactions
+db.version(9).stores({
+  products: '++id, barcode, name, price, stock, unit, lowStockAlert, creditPrice, wholesalePrice, wholesaleCreditPrice, wholesaleUnit, wholesaleConversionRate, taxRate',
+  orders: '++id, timestamp, total, customerPhone, paymentStatus, totalTax, userId, shiftId',
+  settings: 'key, value',
+  customers: 'phone, name, points, debt',
+  promotions: '++id, name, type, isActive',
+  customerTransactions: '++id, customerPhone, timestamp, type, amount, remainingDebt',
+  users: '++id, username, pinHash, role, name, isActive',
+  shifts: '++id, userId, startTime, endTime, startingCash, expectedCash, actualCash, difference, status',
+  attendance: '++id, userId, clockIn, clockOut, date, totalHours',
+  suppliers: '++id, name, phone, debt, note',
+  supplierTransactions: '++id, supplierId, timestamp, type, amount, remainingDebt, note'
 });
 
 // Helper to seed initial settings if empty

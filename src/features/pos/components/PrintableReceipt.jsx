@@ -54,7 +54,7 @@ export default function PrintableReceipt({ order, isBatchPrint = false }) {
       <div className="w-full mx-auto p-1.5 bg-white text-black font-mono text-[13.5px] leading-snug">
         {/* Receipt Header */}
         <div className="text-center mb-4">
-          <h2 className="text-[17px] font-extrabold uppercase tracking-widest">TẠP HÓA HỒNG NGỌC</h2>
+          <h2 className="text-[17px] font-extrabold uppercase tracking-widest">EZPOS</h2>
           <p className="text-[11.5px] text-black mt-0.5">Mã ID: {order.storeId || 'POS-STORE'}</p>
           <p className="text-[11.5px] text-black">Thời gian: {formatDate(order.timestamp)}</p>
           <h3 className="text-[15px] font-extrabold uppercase mt-2.5 tracking-wide border-t border-b border-black py-1.5">

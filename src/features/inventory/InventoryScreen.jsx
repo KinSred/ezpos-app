@@ -12,6 +12,7 @@ import StockIntakeModal from './components/StockIntakeModal';
 import { motion, AnimatePresence } from 'framer-motion';
 import { removeAccents } from '../../utils/string';
 import PrintableBarcodeLabel from './components/PrintableBarcodeLabel';
+import SuppliersTab from './components/SuppliersTab';
 
 export default function InventoryScreen() {
   const [searchInput, setSearchInput] = useState('');
@@ -130,6 +131,8 @@ export default function InventoryScreen() {
   };
 
 
+  const [activeTab, setActiveTab] = useState('products'); // 'products', 'suppliers'
+
   return (
     <div className="h-full bg-transparent p-6 flex flex-col overflow-hidden transition-colors duration-200" aria-label="Giao diện quản lý kho hàng">
       {/* Top action row */}
@@ -139,69 +142,86 @@ export default function InventoryScreen() {
             <Package className="text-sky-600 dark:text-cyan-400" size={32} />
             Quản Lý Kho Hàng
           </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Quản lý giá cả, đơn vị tính và theo dõi số lượng tồn kho sản phẩm.</p>
+          <div className="flex gap-4 mt-2">
+            <button 
+              onClick={() => setActiveTab('products')}
+              className={`text-sm font-bold pb-1 border-b-2 transition-colors ${activeTab === 'products' ? 'border-sky-500 text-sky-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+            >
+              Sản Phẩm
+            </button>
+            <button 
+              onClick={() => setActiveTab('suppliers')}
+              className={`text-sm font-bold pb-1 border-b-2 transition-colors ${activeTab === 'suppliers' ? 'border-sky-500 text-sky-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+            >
+              Nhà Cung Cấp
+            </button>
+          </div>
         </div>
         
         <div className="flex items-center gap-3 w-full md:w-auto">
           <div className="relative flex-1 md:w-72">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-slate-500">
               <Search className="text-sky-500" size={18} />
-            </div>
+            </span>
             <input 
               type="text" 
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Tìm tên hoặc mã sản phẩm..."
-              className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent text-slate-800 dark:text-slate-100 shadow-sm"
+              placeholder="Tìm kiếm..."
+              className="w-full pl-12 pr-4 py-2.5 glass-input rounded-xl text-sm text-slate-800 dark:text-slate-100 shadow-sm"
             />
           </div>
-          <input 
-            type="file" 
-            accept=".json" 
-            id="import-file" 
-            className="hidden" 
-            onChange={handleImport}
-          />
-           <motion.label 
-            whileTap={{ scale: 0.97 }}
-            htmlFor="import-file"
-            className="flex items-center gap-2 px-5 py-2.5 bg-white/60 dark:bg-slate-900/40 hover:bg-sky-50 dark:hover:bg-sky-950/30 border border-slate-200/50 dark:border-slate-800/50 text-slate-700 dark:text-slate-200 font-semibold rounded-2xl text-sm cursor-pointer shadow-sm transition-all focus-within:ring-2 focus-within:ring-sky-500"
-          >
-            <Upload size={16} />
-            Nhập Danh Sách
-          </motion.label>
+          {activeTab === 'products' && (
+            <>
+              <input 
+                type="file" 
+                accept=".json" 
+                id="import-file" 
+                className="hidden" 
+                onChange={handleImport}
+              />
+              <motion.label 
+                whileTap={{ scale: 0.97 }}
+                htmlFor="import-file"
+                className="flex items-center gap-2 px-5 py-2.5 glass-button text-slate-700 dark:text-slate-200 font-bold rounded-2xl text-sm cursor-pointer transition-all"
+              >
+                <Upload size={16} />
+                <span className="hidden md:inline">Nhập Danh Sách</span>
+              </motion.label>
 
-          <motion.button 
-            whileTap={{ scale: 0.97 }}
-            onClick={handleExport}
-            className="flex items-center gap-2 px-5 py-2.5 bg-white/60 dark:bg-slate-900/40 hover:bg-sky-50 dark:hover:bg-sky-950/30 border border-slate-200/50 dark:border-slate-800/50 text-slate-700 dark:text-slate-200 font-semibold rounded-2xl text-sm shadow-sm transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
-          >
-            <Download size={16} />
-            Xuất Danh Sách
-          </motion.button>
+              <motion.button 
+                whileTap={{ scale: 0.97 }}
+                onClick={handleExport}
+                className="flex items-center gap-2 px-5 py-2.5 glass-button text-slate-700 dark:text-slate-200 font-bold rounded-2xl text-sm transition-all focus:outline-none"
+              >
+                <Download size={16} />
+                <span className="hidden md:inline">Xuất Danh Sách</span>
+              </motion.button>
 
-          <motion.button 
-            whileTap={{ scale: 0.97 }}
-            onClick={() => setShowIntakeModal(true)}
-            className="flex items-center gap-2 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-2xl text-sm shadow-lg shadow-emerald-500/30 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
-          >
-            <PackagePlus size={16} />
-            Nhập Hàng
-          </motion.button>
+              <motion.button 
+                whileTap={{ scale: 0.97 }}
+                onClick={() => setShowIntakeModal(true)}
+                className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-bold rounded-2xl text-sm shadow-lg shadow-emerald-500/30 transition-all border border-white/20 backdrop-blur-sm"
+              >
+                <PackagePlus size={16} />
+                Nhập Hàng
+              </motion.button>
 
-          <motion.button 
-            whileTap={{ scale: 0.97 }}
-            onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white font-bold rounded-2xl text-sm shadow-lg shadow-cyan-500/30 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"
-          >
-            <Plus size={16} />
-            Thêm Mới
-          </motion.button>
+              <motion.button 
+                whileTap={{ scale: 0.97 }}
+                onClick={() => setShowAddModal(true)}
+                className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white font-bold rounded-2xl text-sm shadow-lg shadow-cyan-500/30 transition-all border border-white/20 backdrop-blur-sm"
+              >
+                <Plus size={16} />
+                Thêm Mới
+              </motion.button>
+            </>
+          )}
         </div>
       </div>
 
       {/* Banner cảnh báo sắp hết hàng */}
-      {totalLowStockCount > 0 && !showLowStockOnly && !hideStockSetting && (
+      {activeTab === 'products' && totalLowStockCount > 0 && !showLowStockOnly && !hideStockSetting && (
         <motion.div 
           initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
           className="mb-6 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between cursor-pointer hover:bg-rose-100 dark:hover:bg-rose-500/20 transition-colors shadow-sm gap-4 flex-shrink-0"
@@ -222,7 +242,7 @@ export default function InventoryScreen() {
         </motion.div>
       )}
 
-      {showLowStockOnly && (
+      {activeTab === 'products' && showLowStockOnly && (
         <motion.div 
           initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
           className="mb-6 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between flex-shrink-0 gap-4"
@@ -245,10 +265,13 @@ export default function InventoryScreen() {
         </motion.div>
       )}
 
-      {/* Database Inventory Table Panel */}
+      {/* Main Content Area */}
       <div className="flex-1 glass-card rounded-3xl overflow-hidden flex flex-col min-h-0 transition-colors duration-500">
-        
-        <div className="flex-1 overflow-x-auto overflow-y-auto">
+        {activeTab === 'suppliers' ? (
+          <SuppliersTab searchTerm={debouncedSearchTerm} />
+        ) : (
+          <>
+          <div className="flex-1 overflow-x-auto overflow-y-auto">
           <table className="w-full text-left text-sm text-slate-800 dark:text-slate-100 border-collapse min-w-[700px]">
             <thead className="text-xs font-bold text-sky-900 dark:text-sky-100 uppercase tracking-wider bg-sky-100/80 dark:bg-sky-950/80 backdrop-blur-sm sticky top-0 z-10 border-b border-sky-200/50 dark:border-sky-800/30">
               <tr>
@@ -327,6 +350,8 @@ export default function InventoryScreen() {
             💡 Rê chuột vào từng dòng và bấm vào biểu tượng <Edit2 size={12} className="inline" /> để sửa nhanh thông tin
           </span>
         </div>
+        </>
+        )}
       </div>
 
 

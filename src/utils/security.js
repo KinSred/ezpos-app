@@ -1,0 +1,17 @@
+export const GLOBAL_SALT = 'EZPOS_SECURE_SALT_2026_V1';
+
+export const hashPin = async (pin) => {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(pin + GLOBAL_SALT);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+};
+
+export const legacyHashPin = async (pin) => {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(pin);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+};

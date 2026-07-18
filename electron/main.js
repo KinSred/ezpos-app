@@ -21,6 +21,7 @@ function createWindow() {
     minWidth: 1024,
     minHeight: 768,
     show: false, // Don't show until ready to prevent flickering
+    icon: path.join(__dirname, '../build/icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       nodeIntegration: false,
