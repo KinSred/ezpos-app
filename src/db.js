@@ -214,6 +214,19 @@ export const initializeSettings = async () => {
   }
 };
 
+export const initializeUsers = async () => {
+  const usersCount = await db.users.count();
+  if (usersCount === 0) {
+    const defaultPinHash = await hashPin('0000');
+    await db.users.add({
+      username: 'admin',
+      pinHash: defaultPinHash,
+      role: 'admin',
+      name: 'Chủ Cửa Hàng',
+      isActive: true
+    });
+  }
+};
+
 initializeSettings();
-
-
+initializeUsers();

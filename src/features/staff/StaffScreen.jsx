@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, UserPlus, Edit, Trash2, Shield, CheckCircle2, XCircle, Lock, KeyRound } from 'lucide-react';
+import { Users, UserPlus, Edit, Trash2, Shield, CheckCircle2, XCircle, Lock, KeyRound, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { hashPin } from '../../utils/security';
 
@@ -132,36 +132,36 @@ export default function StaffScreen() {
         <div className="glass-card rounded-3xl overflow-hidden transition-colors duration-500">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="glass-panel border-b border-slate-200/50 dark:border-slate-700/50">
-                <th className="p-4 font-bold text-slate-600 dark:text-slate-300">Tên Nhân Viên</th>
-                <th className="p-4 font-bold text-slate-600 dark:text-slate-300">Tên Đăng Nhập</th>
-                <th className="p-4 font-bold text-slate-600 dark:text-slate-300">Vai Trò</th>
-                <th className="p-4 font-bold text-slate-600 dark:text-slate-300 text-center">Trạng Thái</th>
-                <th className="p-4 font-bold text-slate-600 dark:text-slate-300 text-right">Thao Tác</th>
+              <tr className="text-[10px] font-bold text-slate-450 dark:text-slate-500 uppercase tracking-widest bg-white/40 dark:bg-[#0a0d1a]/50 backdrop-blur-md border-b border-black/5 dark:border-white/5">
+                <th className="p-4">Tên Nhân Viên</th>
+                <th className="p-4">Tên Đăng Nhập</th>
+                <th className="p-4">Vai Trò</th>
+                <th className="p-4 text-center">Trạng Thái</th>
+                <th className="p-4 text-right">Thao Tác</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-black/5 dark:divide-white/5">
               {users?.map(user => (
-                <tr key={user.id} className="border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                <tr key={user.id} className="border-b border-black/5 dark:border-white/5 hover:bg-white/15 dark:hover:bg-white/5 transition-all duration-200">
                   <td className="p-4 font-bold text-slate-800 dark:text-slate-100">{user.name}</td>
-                  <td className="p-4 text-slate-600 dark:text-slate-300">@{user.username}</td>
+                  <td className="p-4 text-slate-600 dark:text-slate-350">@{user.username}</td>
                   <td className="p-4">
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                    <span className={
                       user.role === 'admin' 
-                        ? 'bg-rose-500/10 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400 border border-rose-500/20' 
-                        : 'bg-indigo-500/10 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400 border border-indigo-500/20'
-                    }`}>
+                        ? 'glass-badge-rose' 
+                        : 'glass-badge-sky'
+                    }>
                       {user.role === 'admin' ? 'Quản Lý' : 'Thu Ngân'}
                     </span>
                   </td>
                   <td className="p-4 text-center">
                     {user.isActive ? (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-full text-xs font-bold">
+                      <span className="glass-badge-emerald inline-flex items-center gap-1">
                         <CheckCircle2 size={12} />
                         Hoạt Động
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-full text-xs font-bold">
+                      <span className="glass-badge-rose inline-flex items-center gap-1">
                         <XCircle size={12} />
                         Đã Khóa
                       </span>
@@ -170,14 +170,15 @@ export default function StaffScreen() {
                   <td className="p-4 text-right space-x-2">
                     <button
                       onClick={() => handleOpenModal(user)}
-                      className="p-2 glass-button text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-xl transition-colors"
+                      className="p-2 glass-button text-slate-400 hover:text-indigo-650 dark:hover:text-indigo-400 rounded-xl transition-colors"
                       title="Sửa nhân viên"
                     >
                       <Edit size={16} />
                     </button>
                     <button
                       onClick={() => handleDelete(user)}
-                      className="p-2 bg-rose-50 dark:bg-rose-900/20 hover:bg-rose-100 dark:hover:bg-rose-900/40 text-rose-500 rounded-lg transition-colors"
+                      className="p-2 glass-button text-slate-400 hover:text-rose-500 rounded-xl transition-colors"
+                      title="Xóa nhân viên"
                     >
                       <Trash2 size={16} />
                     </button>

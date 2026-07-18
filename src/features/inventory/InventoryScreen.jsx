@@ -273,7 +273,7 @@ export default function InventoryScreen() {
           <>
           <div className="flex-1 overflow-x-auto overflow-y-auto">
           <table className="w-full text-left text-sm text-slate-800 dark:text-slate-100 border-collapse min-w-[700px]">
-            <thead className="text-xs font-bold text-sky-900 dark:text-sky-100 uppercase tracking-wider bg-sky-100/80 dark:bg-sky-950/80 backdrop-blur-sm sticky top-0 z-10 border-b border-sky-200/50 dark:border-sky-800/30">
+            <thead className="text-[10px] font-bold text-slate-450 dark:text-slate-500 uppercase tracking-widest bg-white/40 dark:bg-[#0a0d1a]/50 backdrop-blur-md sticky top-0 z-10 border-b border-black/5 dark:border-white/5">
               <tr>
                 <th className="px-6 py-4">Mã Vạch</th>
                 <th className="px-6 py-4">Tên Sản Phẩm</th>

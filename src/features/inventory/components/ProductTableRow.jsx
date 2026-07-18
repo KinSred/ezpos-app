@@ -197,7 +197,7 @@ export default function ProductTableRow({
   const low = isLowStock(product);
 
   return (
-    <tr className="hover:bg-slate-50/50 dark:hover:bg-slate-900/10 transition-colors border-b border-slate-100 dark:border-slate-800/40">
+    <tr className="hover:bg-white/15 dark:hover:bg-white/5 transition-all duration-200 border-b border-black/5 dark:border-white/5">
       <td className="px-6 py-4.5 font-mono text-xs text-slate-500 dark:text-slate-400">{product.barcode}</td>
       <td className="px-6 py-4.5 font-extrabold text-slate-800 dark:text-slate-100">{product.name}</td>
       
@@ -205,7 +205,7 @@ export default function ProductTableRow({
       <td className="px-6 py-4.5">
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2 group text-slate-800 dark:text-slate-200">
-            <span className="text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-1.5 py-0.5 rounded-md uppercase tracking-wider">{product.unit || 'cái'}</span>
+            <span className="glass-badge-sky">{product.unit || 'cái'}</span>
             <span className="font-extrabold text-sm">{formatPrice(product.price)}</span>
             <motion.button 
               whileTap={{ scale: 0.85 }}
@@ -216,7 +216,7 @@ export default function ProductTableRow({
             </motion.button>
           </div>
           <div className="flex items-center gap-2 group text-xs text-slate-500 dark:text-slate-400 font-medium">
-            <span className="italic">Nợ:</span>
+            <span className="italic text-slate-400">Nợ:</span>
             <span className="font-semibold">{product.creditPrice ? formatPrice(product.creditPrice) : '-'}</span>
             <motion.button 
               whileTap={{ scale: 0.85 }}
@@ -227,7 +227,7 @@ export default function ProductTableRow({
             </motion.button>
           </div>
           {product.quantityDiscounts && product.quantityDiscounts.length > 0 && (
-            <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/5 dark:bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/10 w-fit mt-1">
+            <div className="glass-badge-emerald mt-1">
               % C.Khấu số lượng
             </div>
           )}
@@ -239,7 +239,7 @@ export default function ProductTableRow({
         {product.midUnit ? (
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold bg-sky-50 dark:bg-sky-950/40 text-sky-600 dark:text-sky-400 px-1.5 py-0.5 rounded-md uppercase tracking-wider">{product.midUnit}</span>
+              <span className="glass-badge-sky">{product.midUnit}</span>
               <span className="font-extrabold text-sm text-slate-800 dark:text-slate-200">
                 {product.midPrice ? formatPrice(product.midPrice) : '-'}
               </span>
@@ -255,7 +255,7 @@ export default function ProductTableRow({
               Quy đổi: 1 {product.midUnit} = {product.midConversionRate || 0} {product.unit || 'cái'}
             </div>
             <div className="flex items-center gap-2 group text-xs text-slate-500 dark:text-slate-400 font-medium">
-              <span className="italic">Nợ:</span>
+              <span className="italic text-slate-400">Nợ:</span>
               <span className="font-semibold">{product.creditMidPrice ? formatPrice(product.creditMidPrice) : '-'}</span>
               <motion.button 
                 whileTap={{ scale: 0.85 }}
@@ -281,7 +281,7 @@ export default function ProductTableRow({
         {product.wholesaleUnit ? (
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 px-1.5 py-0.5 rounded-md uppercase tracking-wider">{product.wholesaleUnit}</span>
+              <span className="glass-badge-amber">{product.wholesaleUnit}</span>
               <span className="font-extrabold text-sm text-slate-800 dark:text-slate-200">
                 {product.wholesalePrice ? formatPrice(product.wholesalePrice) : '-'}
               </span>
@@ -297,7 +297,7 @@ export default function ProductTableRow({
               Quy đổi: 1 {product.wholesaleUnit} = {product.wholesaleConversionRate || 0} {product.unit || 'cái'}
             </div>
             <div className="flex items-center gap-2 group text-xs text-slate-500 dark:text-slate-400 font-medium">
-              <span className="italic">Nợ:</span>
+              <span className="italic text-slate-400">Nợ:</span>
               <span className="font-semibold">{product.creditWholesalePrice ? formatPrice(product.creditWholesalePrice) : '-'}</span>
               <motion.button 
                 whileTap={{ scale: 0.85 }}
@@ -322,19 +322,19 @@ export default function ProductTableRow({
       <td className="px-6 py-4.5 text-center">
         {hideStockSetting ? (
           <div className="flex items-center justify-center">
-            <span className="px-3 py-1 rounded-full text-xs font-bold border shadow-sm bg-sky-50 dark:bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-200/50 dark:border-sky-850/30">
+            <span className="glass-badge-sky">
               Đang bán
             </span>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-1.5">
             <div className="flex items-center justify-center gap-1.5 group">
-              <span className={`px-3 py-1 rounded-full text-xs font-black flex items-center gap-1.5 border shadow-sm ${
+              <span className={
                 low 
-                  ? 'bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-450 border-rose-200/50 dark:border-rose-500/20 animate-pulse' 
-                  : 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200/50 dark:border-emerald-500/20'
-              }`}>
-                {low && <AlertTriangle size={12} />}
+                  ? 'glass-badge-rose animate-pulse' 
+                  : 'glass-badge-emerald'
+              }>
+                {low && <AlertTriangle size={12} className="mr-1 inline" />}
                 {product.stock} {product.unit || 'cái'}
               </span>
               <motion.button 
@@ -346,7 +346,7 @@ export default function ProductTableRow({
               </motion.button>
             </div>
             {formatStockDisplay(product) && (
-              <div className="text-[10px] font-bold text-sky-650 dark:text-sky-400 bg-sky-500/5 dark:bg-sky-500/10 px-2 py-0.5 rounded border border-sky-500/10 whitespace-nowrap">
+              <div className="glass-badge-sky scale-90 -mt-0.5 whitespace-nowrap">
                 = {formatStockDisplay(product)}
               </div>
             )}
@@ -367,7 +367,7 @@ export default function ProductTableRow({
       {/* Thuế VAT */}
       <td className="px-6 py-4.5 text-center font-bold">
         <div className="flex items-center justify-center gap-1 group">
-          <span className="text-xs text-rose-500 dark:text-rose-450 bg-rose-500/5 dark:bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/10">
+          <span className="glass-badge-rose">
             {product.taxRate === undefined || product.taxRate === -1 ? 'Mặc định' : `${product.taxRate}%`}
           </span>
           <motion.button 

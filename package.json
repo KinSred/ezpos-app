@@ -38,7 +38,13 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "EZPOS"
+      "shortcutName": "EZPOS",
+      "multiLanguageInstaller": true,
+      "installerLanguages": [
+        "en_US",
+        "vi_VN"
+      ],
+      "include": "build/installer.nsh"
     }
   },
   "dependencies": {

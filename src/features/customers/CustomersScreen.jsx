@@ -341,7 +341,7 @@ export default function CustomersScreen() {
       <div className="flex-1 glass-card rounded-3xl overflow-hidden flex flex-col transition-colors duration-500">
         <div className="flex-1 overflow-auto">
           <table className="w-full text-left border-collapse min-w-[600px]">
-            <thead className="text-xs font-bold text-sky-900 dark:text-sky-100 uppercase tracking-wider glass-panel sticky top-0 z-10 border-b border-sky-200/50 dark:border-sky-800/30">
+            <thead className="text-[10px] font-bold text-slate-450 dark:text-slate-500 uppercase tracking-widest bg-white/40 dark:bg-[#0a0d1a]/50 backdrop-blur-md sticky top-0 z-10 border-b border-black/5 dark:border-white/5">
               <tr>
                 <th className="py-4 px-6 font-semibold uppercase tracking-wider">Khách Hàng</th>
                 <th className="py-4 px-6 font-semibold uppercase tracking-wider">Số Điện Thoại</th>
@@ -349,7 +349,7 @@ export default function CustomersScreen() {
                 <th className="py-4 px-6 font-semibold uppercase tracking-wider text-right">Thao Tác</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/40">
+            <tbody className="divide-y divide-black/5 dark:divide-white/5">
               {filteredCustomers.length === 0 ? (
                 <tr>
                   <td colSpan="4" className="py-12 text-center text-slate-500 dark:text-slate-400">
@@ -361,11 +361,11 @@ export default function CustomersScreen() {
                   <tr 
                     key={customer.phone} 
                     onClick={() => handleViewHistory(customer)}
-                    className="hover:bg-slate-50/50 dark:hover:bg-slate-900/10 transition-colors cursor-pointer group border-b border-slate-100 dark:border-slate-800/40"
+                    className="hover:bg-white/15 dark:hover:bg-white/5 transition-all duration-205 cursor-pointer group border-b border-black/5 dark:border-white/5"
                     title="Nhấn để xem lịch sử mua hàng"
                   >
                     <td className="py-4 px-6">
-                      <div className="font-extrabold text-slate-850 dark:text-slate-100 group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-all flex items-center gap-2">
+                      <div className="font-extrabold text-slate-800 dark:text-slate-100 group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-all flex items-center gap-2">
                         {customer.name}
                         <History size={14} className="opacity-0 group-hover:opacity-60 transition-opacity text-sky-500" />
                       </div>
@@ -390,7 +390,7 @@ export default function CustomersScreen() {
                             Trả Nợ
                           </button>
                         ) : (
-                          <span className="text-emerald-600 dark:text-emerald-400 text-xs font-bold glass-panel px-3.5 py-2 rounded-xl border border-emerald-500/20">Không nợ</span>
+                          <span className="glass-badge-emerald">Không nợ</span>
                         )}
                         <button
                           onClick={(e) => handleOpenEdit(customer, e)}

@@ -23,6 +23,10 @@
     @apply bg-white/50 dark:bg-[#121629]/40 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] dark:shadow-[0_8px_32px_0_rgba(0,0,0,0.4)];
   }
   
+  .glass-card-glow {
+    @apply bg-white/50 dark:bg-[#121629]/40 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] dark:shadow-[0_8px_32px_0_rgba(0,0,0,0.4)] transition-all duration-300 hover:shadow-[0_12px_40px_rgba(56,189,248,0.08)] dark:hover:shadow-[0_12px_40px_rgba(56,189,248,0.15)] hover:border-sky-400/35 dark:hover:border-sky-400/25;
+  }
+  
   .glass-panel {
     @apply bg-white/30 dark:bg-[#0a0d1a]/50 backdrop-blur-xl border border-white/40 dark:border-white/5 shadow-lg;
   }
@@ -33,6 +37,26 @@
   
   .glass-input {
     @apply bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/50 dark:border-white/10 focus:bg-white/70 dark:focus:bg-black/50 transition-all;
+  }
+
+  .glass-badge {
+    @apply inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold backdrop-blur-md border shadow-xs transition-all;
+  }
+
+  .glass-badge-sky {
+    @apply inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold backdrop-blur-md border shadow-xs transition-all bg-sky-500/10 dark:bg-sky-500/20 text-sky-600 dark:text-sky-300 border-sky-500/20 dark:border-sky-500/30;
+  }
+
+  .glass-badge-emerald {
+    @apply inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold backdrop-blur-md border shadow-xs transition-all bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border-emerald-500/20 dark:border-emerald-500/30;
+  }
+
+  .glass-badge-amber {
+    @apply inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold backdrop-blur-md border shadow-xs transition-all bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-300 border-amber-500/20 dark:border-amber-500/30;
+  }
+
+  .glass-badge-rose {
+    @apply inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold backdrop-blur-md border shadow-xs transition-all bg-rose-500/10 dark:bg-rose-500/20 text-rose-600 dark:text-rose-300 border-rose-500/20 dark:border-rose-500/30;
   }
 
   .ocean-text {
