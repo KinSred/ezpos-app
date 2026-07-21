@@ -9,19 +9,19 @@
 
 Bản cập nhật v1.0.4 tập trung nâng cao trải nghiệm thanh toán với hệ thống điểm thưởng linh hoạt, quản lý công nợ nâng cao và đặc biệt là bộ máy tìm kiếm sản phẩm thông minh hoàn toàn mới.
 
-### ✨ Tính năng mới (New Features)
-- **Chuyển Công Nợ Khách Hàng:** Bổ sung tính năng chuyển nợ (một phần hoặc toàn bộ) giữa các khách hàng trực tiếp trong Sổ Khách Hàng. Giao dịch chuyển nợ tự động được ghi nhận mạch lạc vào lịch sử của cả 2 bên.
-- **Hệ Thống Điểm Thưởng Tùy Biến:** Thêm module "Điểm Tích Luỹ" vào phần Cài Đặt, cho phép Bật/Tắt hệ thống điểm và linh hoạt tự thiết lập Tỷ lệ Tích Điểm, Tỷ lệ Tiêu Điểm cho quán.
-- **Quản Lý Điểm Trực Quan:** Thêm cột hiển thị Điểm thưởng của từng người ngay trên giao diện danh sách bảng Khách Hàng (Sổ Nợ), giúp dễ dàng theo dõi dư nợ và số điểm khách đang có.
-- **Báo Cáo Doanh Thu Hôm Nay:** Nâng cấp thẻ báo cáo ở màn hình Lịch Sử & Báo Cáo. Thêm thẻ "Doanh thu hôm nay" để chủ quán dễ dàng chốt ca, đối chiếu tiền mặt mỗi ngày một cách tiện lợi.
-- **Tối ưu Hóa Đơn Ghi Nợ:** Tinh gọn bố cục Hóa Đơn khi in cho khách mua nợ, ẩn bớt các thông số thừa, làm nổi bật "Tổng Đơn Hàng" và "Tổng Nợ Hiện Tại" để khách hàng dễ hiểu nhất.
+## ✨ Tính năng mới (New Features)
+*   **Chuyển Công Nợ Khách Hàng:** Bổ sung tính năng chuyển nợ (một phần hoặc toàn bộ) giữa các khách hàng trực tiếp trong Sổ Khách Hàng. Giao dịch chuyển nợ tự động được ghi nhận mạch lạc vào lịch sử của cả 2 bên.
+*   **Hệ Thống Điểm Thưởng Tùy Biến:** Thêm module "Điểm Tích Luỹ" vào phần Cài Đặt, cho phép Bật/Tắt hệ thống điểm và linh hoạt tự thiết lập Tỷ lệ Tích Điểm, Tỷ lệ Tiêu Điểm cho quán.
+*   **Quản Lý Điểm Trực Quan:** Thêm cột hiển thị Điểm thưởng của từng người ngay trên giao diện danh sách bảng Khách Hàng (Sổ Nợ), giúp dễ dàng theo dõi dư nợ và số điểm khách đang có.
+*   **Báo Cáo Doanh Thu Hôm Nay:** Nâng cấp thẻ báo cáo ở màn hình Lịch Sử & Báo Cáo. Thêm thẻ "Doanh thu hôm nay" để chủ quán dễ dàng chốt ca, đối chiếu tiền mặt mỗi ngày một cách tiện lợi.
+*   **Tối ưu Hóa Đơn Ghi Nợ:** Tinh gọn bố cục Hóa Đơn khi in cho khách mua nợ, ẩn bớt các thông số thừa, làm nổi bật "Tổng Đơn Hàng" và "Tổng Nợ Hiện Tại" để khách hàng dễ hiểu nhất.
 
-### 🛠 Cập nhật hệ thống & Bảo mật (Under the hood)
-- **Nâng cấp Bộ Tìm Kiếm Thông Minh (Tokenized Search):** Tái cấu trúc thuật toán tìm kiếm sản phẩm tại màn hình Thu Ngân và Quản Lý Kho. Giờ đây thu ngân có thể tìm kiếm siêu tốc, linh hoạt không cần gõ đúng thứ tự từ (vd: gõ "mì chua" sẽ tự nhận diện "Mì Hảo Hảo Tôm Chua Cay"), hỗ trợ gõ không dấu hoàn hảo.
+## 🛠 Cập nhật hệ thống & Bảo mật (Under the hood)
+*   **Nâng cấp Bộ Tìm Kiếm Thông Minh (Tokenized Search):** Tái cấu trúc thuật toán tìm kiếm sản phẩm tại màn hình Thu Ngân và Quản Lý Kho. Giờ đây thu ngân có thể tìm kiếm siêu tốc, linh hoạt không cần gõ đúng thứ tự từ (vd: gõ "mì chua" sẽ tự nhận diện "Mì Hảo Hảo Tôm Chua Cay"), hỗ trợ gõ không dấu hoàn hảo.
 
-### 📦 Tải xuống (Downloads)
-- Windows: Tải file `EZPOS Setup 1.0.4.exe`
-- macOS: Tải file `EZPOS-1.0.4.dmg` (hoặc `.zip`)
+## 📦 Tải xuống (Downloads)
+*   Windows: Tải file `EZPOS Setup 1.0.4.exe`
+*   macOS: Tải file `EZPOS-1.0.4.dmg` (hoặc `.zip`)
 
 *Lưu ý: Ứng dụng hoạt động offline-first. Toàn bộ dữ liệu của bạn sẽ tự động được giữ nguyên khi cập nhật phiên bản mới.*
 
