@@ -32,7 +32,9 @@ export default function CheckoutConfirmationModal({
   totalTaxAmount,
   onRemoveItem,
   onUpdateCustomPrice,
-  showShortcuts
+  showShortcuts,
+  pointsEnabled,
+  pointsRedeemRatio
 }) {
   const [paymentMethod, setPaymentMethod] = useState(isCredit ? 'credit' : 'cash'); // 'cash' or 'vietqr' or 'credit'
   const [cashReceived, setCashReceived] = useState('');

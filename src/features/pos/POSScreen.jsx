@@ -23,7 +23,7 @@ export default function POSScreen({ isActive = true }) {
         if (parsed && parsed.length > 0) {
           return parsed.map(tab => ({
             ...tab,
-            cartItems: tab.cartItems.map(item => ({
+            items: (tab.items || tab.cartItems || []).map(item => ({
               ...item,
               uiKey: item.uiKey || (Date.now() + Math.random())
             }))
