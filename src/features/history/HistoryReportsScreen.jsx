@@ -52,26 +52,26 @@ export default function HistoryReportsScreen() {
   }, [searchDate]);
 
   // Fetch orders from Dexie
-  const orders = useLiveQuery(
+  const { allOrders, filteredOrders } = useLiveQuery(
     async () => {
-      let allOrders = await db.orders.toArray();
-      // Sort by timestamp descending
-      allOrders.sort((a, b) => b.timestamp - a.timestamp);
+      let all = await db.orders.toArray();
+      all.sort((a, b) => b.timestamp - a.timestamp);
       
+      let filtered = [...all];
       if (searchPhone) {
-        allOrders = allOrders.filter(o => o.customerPhone && o.customerPhone.includes(searchPhone.trim()));
+        filtered = filtered.filter(o => o.customerPhone && o.customerPhone.includes(searchPhone.trim()));
       }
       if (searchDate) {
-        allOrders = allOrders.filter(o => {
+        filtered = filtered.filter(o => {
           const d = new Date(o.timestamp);
           const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
           return dateStr === searchDate;
         });
       }
-      return allOrders;
+      return { allOrders: all, filteredOrders: filtered };
     },
     [searchPhone, searchDate]
-  );
+  ) || { allOrders: [], filteredOrders: [] };
 
 
   // Accessibility (A11y): Close details drawer on ESC key
@@ -200,7 +200,7 @@ export default function HistoryReportsScreen() {
   };
 
   // --- State Management: Loading State ---
-  if (orders === undefined) {
+  if (!allOrders) {
     return (
       <div className="h-full bg-transparent flex items-center justify-center transition-colors duration-200">
         <div className="flex flex-col items-center gap-3">
@@ -211,7 +211,7 @@ export default function HistoryReportsScreen() {
     );
   }
 
-  const totalOrdersCount = orders.length;
+  const totalOrdersCount = filteredOrders.length;
 
   return (
     <>
@@ -404,7 +404,7 @@ export default function HistoryReportsScreen() {
                         </td>
                       </tr>
                     ) : (
-                      orders.map((order) => (
+                      filteredOrders.map((order) => (
                         <tr 
                           key={order.id} 
                           onClick={() => setSelectedOrder(order)}
@@ -471,7 +471,8 @@ export default function HistoryReportsScreen() {
         ) : (
           /* BÁO CÁO DOANH SỐ TAB */
           <ReportsTab 
-            orders={orders}
+            orders={filteredOrders}
+            allOrders={allOrders}
             setSearchDate={setSearchDate}
             setActiveTab={setActiveTab}
           />

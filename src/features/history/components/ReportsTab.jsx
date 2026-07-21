@@ -2,15 +2,23 @@ import React from 'react';
 import { DollarSign, ShoppingBag, TrendingUp, Percent } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell } from 'recharts';
 
-export default function ReportsTab({ orders, setSearchDate, setActiveTab }) {
+export default function ReportsTab({ orders, allOrders, setSearchDate, setActiveTab }) {
   const formatPrice = (price) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
   };
 
+  const today = new Date();
+  const todayRevenue = (allOrders || []).reduce((sum, o) => {
+    const d = new Date(o.timestamp);
+    if (d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear()) {
+      return sum + o.total;
+    }
+    return sum;
+  }, 0);
+
   const totalRevenue = orders.reduce((sum, o) => sum + o.total, 0);
   const totalOrdersCount = orders.length;
   const avgOrderValue = totalOrdersCount > 0 ? totalRevenue / totalOrdersCount : 0;
-  const totalDiscounts = orders.reduce((sum, o) => sum + (o.discount || 0), 0);
 
   const getTopProducts = () => {
     const productCounts = {};
@@ -137,6 +145,18 @@ export default function ReportsTab({ orders, setSearchDate, setActiveTab }) {
         <div className="glass-card-glow rounded-3xl p-5 flex items-center justify-between group border border-slate-200/40 dark:border-slate-800/40">
           <div className="min-w-0">
             <div className="text-[10px] font-bold text-slate-450 dark:text-slate-500 uppercase tracking-widest mb-1.5">
+              Doanh thu hôm nay
+            </div>
+            <div className="text-xl font-extrabold text-slate-850 dark:text-white tracking-tight truncate">{formatPrice(todayRevenue)}</div>
+          </div>
+          <div className="w-12 h-12 bg-orange-500/10 text-orange-600 dark:text-orange-400 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform shadow-xs">
+            <DollarSign size={22} strokeWidth={2.5} />
+          </div>
+        </div>
+
+        <div className="glass-card-glow rounded-3xl p-5 flex items-center justify-between group border border-slate-200/40 dark:border-slate-800/40">
+          <div className="min-w-0">
+            <div className="text-[10px] font-bold text-slate-450 dark:text-slate-500 uppercase tracking-widest mb-1.5">
               Tổng doanh thu
             </div>
             <div className="text-xl font-extrabold text-slate-850 dark:text-white tracking-tight truncate">{formatPrice(totalRevenue)}</div>
@@ -167,18 +187,6 @@ export default function ReportsTab({ orders, setSearchDate, setActiveTab }) {
           </div>
           <div className="w-12 h-12 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform shadow-xs">
             <TrendingUp size={20} strokeWidth={2.5} />
-          </div>
-        </div>
-
-        <div className="glass-card-glow rounded-3xl p-5 flex items-center justify-between group border border-slate-200/40 dark:border-slate-800/40">
-          <div className="min-w-0">
-            <div className="text-[10px] font-bold text-slate-450 dark:text-slate-500 uppercase tracking-widest mb-1.5">
-              Tổng chiết khấu
-            </div>
-            <div className="text-xl font-extrabold text-slate-855 dark:text-white tracking-tight truncate">{formatPrice(totalDiscounts)}</div>
-          </div>
-          <div className="w-12 h-12 bg-rose-500/10 text-rose-600 dark:text-rose-400 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform shadow-xs">
-            <Percent size={18} strokeWidth={2.5} />
           </div>
         </div>
       </div>
