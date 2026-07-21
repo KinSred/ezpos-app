@@ -702,15 +702,18 @@ export default function POSScreen({ isActive = true }) {
       toast.success(isCredit ? "Đã ghi nợ thành công!" : "Thanh toán thành công!");
 
       setLastCompletedOrder(newOrder);
-      setShowSuccessModal(true);
 
       const autoPrintSetting = await db.settings.get('autoPrint');
-      if (autoPrintSetting && (autoPrintSetting.value === 'true' || autoPrintSetting.value === true)) {
+      const isAutoPrint = autoPrintSetting && (autoPrintSetting.value === 'true' || autoPrintSetting.value === true);
+
+      if (isAutoPrint) {
         setActivePrintOrder(newOrder);
         setTimeout(async () => {
           await silentPrint(newOrder);
           setActivePrintOrder(null);
         }, 300);
+      } else {
+        setShowSuccessModal(true);
       }
 
       await autoSaveToLocalStorage();

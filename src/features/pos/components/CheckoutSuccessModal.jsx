@@ -90,7 +90,10 @@ export default function CheckoutSuccessModal({ order, onClose, onPrint }) {
         <div className="p-6 flex flex-col gap-3">
           <motion.button 
             whileTap={{ scale: 0.97 }}
-            onClick={() => onPrint(order)}
+            onClick={() => {
+              onPrint(order);
+              onClose();
+            }}
             className="w-full py-3.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 font-bold rounded-2xl text-sm flex items-center justify-center gap-2 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
             aria-label="In hóa đơn đơn hàng này"
           >
