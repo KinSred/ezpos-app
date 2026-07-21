@@ -13,6 +13,7 @@ Bản cập nhật v1.0.4 tập trung nâng cao trải nghiệm thanh toán vớ
 - **Chuyển Công Nợ Khách Hàng:** Bổ sung tính năng chuyển nợ (một phần hoặc toàn bộ) giữa các khách hàng trực tiếp trong Sổ Khách Hàng. Giao dịch chuyển nợ tự động được ghi nhận mạch lạc vào lịch sử của cả 2 bên.
 - **Hệ Thống Điểm Thưởng Tùy Biến:** Thêm module "Điểm Tích Luỹ" vào phần Cài Đặt, cho phép Bật/Tắt hệ thống điểm và linh hoạt tự thiết lập Tỷ lệ Tích Điểm, Tỷ lệ Tiêu Điểm cho quán.
 - **Quản Lý Điểm Trực Quan:** Thêm cột hiển thị Điểm thưởng của từng người ngay trên giao diện danh sách bảng Khách Hàng (Sổ Nợ), giúp dễ dàng theo dõi dư nợ và số điểm khách đang có.
+- **Báo Cáo Doanh Thu Hôm Nay:** Nâng cấp thẻ báo cáo ở màn hình Lịch Sử & Báo Cáo. Thêm thẻ "Doanh thu hôm nay" để chủ quán dễ dàng chốt ca, đối chiếu tiền mặt mỗi ngày một cách tiện lợi.
 - **Tối ưu Hóa Đơn Ghi Nợ:** Tinh gọn bố cục Hóa Đơn khi in cho khách mua nợ, ẩn bớt các thông số thừa, làm nổi bật "Tổng Đơn Hàng" và "Tổng Nợ Hiện Tại" để khách hàng dễ hiểu nhất.
 
 ### 🛠 Cập nhật hệ thống & Bảo mật (Under the hood)
