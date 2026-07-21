@@ -27,11 +27,15 @@ export default function ScannerColumn({ onScan, onSelectProduct, onAddProduct, i
         setSearchResults([]);
         return;
       }
-      const q = removeAccents(searchQuery.toLowerCase().trim());
+      const searchTokens = removeAccents(searchQuery.toLowerCase().trim()).split(/\s+/);
       try {
         const matched = await db.products
-          .filter(p => removeAccents(p.name.toLowerCase()).includes(q) || p.barcode.toLowerCase().includes(q))
-          .limit(10)
+          .filter(p => {
+            const pName = removeAccents(p.name.toLowerCase());
+            const pBarcode = p.barcode.toLowerCase();
+            return searchTokens.every(token => pName.includes(token) || pBarcode.includes(token));
+          })
+          .limit(15)
           .toArray();
         setSearchResults(matched);
       } catch (err) {

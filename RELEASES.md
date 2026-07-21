@@ -10,6 +10,7 @@
 - **Tuỳ Chỉnh Cấu Hình Điểm Tích Luỹ:** Thêm module "Điểm Tích Luỹ" vào phần Cài Đặt, cho phép Bật/Tắt hệ thống điểm và linh hoạt tự thiết lập Tỷ lệ Tích Điểm, Tỷ lệ Tiêu Điểm cho quán.
 - **Trực quan hoá Điểm:** Thêm hiển thị Điểm thưởng của từng người ngay trên giao diện danh sách bảng Khách Hàng.
 - **Tối ưu Hóa đơn Ghi nợ:** Tinh gọn bố cục Hóa Đơn khi in cho khách mua nợ, ẩn bớt các thông số thừa, làm nổi bật "Tổng Đơn Hàng" và "Tổng Nợ Hiện Tại" để khách hàng dễ hiểu nhất.
+- **Nâng cấp Bộ Tìm Kiếm Thông Minh (Tokenized Search):** Cải tiến thuật toán tìm kiếm sản phẩm tại màn hình Thu Ngân và Quản Lý Kho. Giờ đây bạn có thể tìm kiếm linh hoạt không cần gõ đúng thứ tự từ (vd: gõ "mì chua" sẽ ra "Mì Hảo Hảo Tôm Chua Cay"), hỗ trợ gõ không dấu hoàn hảo.
 
 ---
 

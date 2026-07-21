@@ -64,8 +64,10 @@ export default function InventoryScreen() {
         .filter(p => {
           let matchSearch = true;
           if (debouncedSearchTerm) {
-            const term = removeAccents(debouncedSearchTerm.toLowerCase());
-            matchSearch = removeAccents(p.name.toLowerCase()).includes(term) || p.barcode.includes(debouncedSearchTerm);
+            const searchTokens = removeAccents(debouncedSearchTerm.toLowerCase().trim()).split(/\s+/);
+            const pName = removeAccents(p.name.toLowerCase());
+            const pBarcode = p.barcode.toLowerCase();
+            matchSearch = searchTokens.every(token => pName.includes(token) || pBarcode.includes(token));
           }
           let matchLowStock = true;
           if (showLowStockOnly) {
