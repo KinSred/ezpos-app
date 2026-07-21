@@ -6,11 +6,13 @@ import toast from 'react-hot-toast';
 
 export default function EditCustomerModal({ isOpen, onClose, onSuccess, customerToEdit }) {
   const [editName, setEditName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
   const [editDebt, setEditDebt] = useState('');
 
   useEffect(() => {
     if (customerToEdit) {
       setEditName(customerToEdit.name);
+      setEditPhone(customerToEdit.phone);
       setEditDebt(customerToEdit.debt ? customerToEdit.debt.toString() : '0');
     }
   }, [customerToEdit]);
@@ -25,18 +27,49 @@ export default function EditCustomerModal({ isOpen, onClose, onSuccess, customer
   const handleEditCustomerSubmit = async (e) => {
     e.preventDefault();
     const name = editName.trim();
+    let phone = editPhone.trim();
     const debt = parseFloat(editDebt.replace(/[^0-9]/g, '')) || 0;
     
     if (!name) {
       toast.error('Vui lòng nhập tên khách hàng');
       return;
     }
+    if (!phone) {
+      phone = customerToEdit.phone; // fallback to original if empty
+    }
 
     try {
-      await db.customers.update(customerToEdit.phone, {
-        name,
-        debt
-      });
+      // 1. Check unique name
+      const allCustomers = await db.customers.toArray();
+      const existingName = allCustomers.find(c => c.name.toLowerCase() === name.toLowerCase() && c.phone !== customerToEdit.phone);
+      if (existingName) {
+        toast.error('Tên khách hàng đã tồn tại! Không cho phép trùng tên.');
+        return;
+      }
+
+      if (phone !== customerToEdit.phone) {
+        // 2. Check unique phone
+        const existingPhone = await db.customers.get(phone);
+        if (existingPhone) {
+          toast.error('Số điện thoại này đã được sử dụng bởi khách hàng khác!');
+          return;
+        }
+
+        // Phone changed: Cascade update
+        await db.transaction('rw', db.customers, db.orders, db.customerTransactions, async () => {
+          const oldData = await db.customers.get(customerToEdit.phone);
+          await db.customers.add({ ...oldData, phone, name, debt });
+          await db.orders.where('customerPhone').equals(customerToEdit.phone).modify({ customerPhone: phone });
+          if (db.customerTransactions) {
+            await db.customerTransactions.where('customerPhone').equals(customerToEdit.phone).modify({ customerPhone: phone });
+          }
+          await db.customers.delete(customerToEdit.phone);
+        });
+      } else {
+        // Just update name and debt
+        await db.customers.update(customerToEdit.phone, { name, debt });
+      }
+
       toast.success('Đã cập nhật thông tin khách hàng!');
       onSuccess();
     } catch (error) {
@@ -86,12 +119,12 @@ export default function EditCustomerModal({ isOpen, onClose, onSuccess, customer
               <label className="block text-xs font-bold text-slate-500 dark:text-slate-450 uppercase tracking-wider mb-2">Số Điện Thoại</label>
               <input 
                 type="text" 
-                disabled
-                value={customerToEdit.phone}
-                className="w-full px-4 py-2.5 bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-500 dark:text-slate-400 font-semibold cursor-not-allowed"
+                value={editPhone}
+                onChange={(e) => setEditPhone(e.target.value)}
+                className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:border-sky-500 focus:bg-white dark:focus:bg-slate-900 focus:ring-1 focus:ring-sky-500 focus:outline-none transition-all text-slate-900 dark:text-slate-100 font-semibold"
               />
               <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-1.5 font-bold flex items-center gap-1">
-                <Info size={10} /> SĐT là mã định danh không thể thay đổi.
+                <Info size={10} /> Đổi SĐT sẽ cập nhật toàn bộ lịch sử đơn hàng sang số mới.
               </p>
             </div>
 

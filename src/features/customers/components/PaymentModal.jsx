@@ -80,7 +80,10 @@ export default function PaymentModal({ isOpen, onClose, onSuccess, selectedCusto
           <form onSubmit={handleProcessPayment} className="p-6 space-y-5">
             <div>
               <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Khách hàng</p>
-              <p className="font-bold text-slate-900 dark:text-slate-100">{selectedCustomer.name} - {selectedCustomer.phone}</p>
+              <p className="font-bold text-slate-900 dark:text-slate-100">
+                {selectedCustomer.name}
+                {!selectedCustomer.phone.startsWith('_vl_') && ` - ${selectedCustomer.phone}`}
+              </p>
             </div>
 
             <div>

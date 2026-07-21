@@ -32,10 +32,9 @@ export default function CheckoutConfirmationModal({
   totalTaxAmount,
   onRemoveItem,
   onUpdateCustomPrice,
-  mode,
   showShortcuts
 }) {
-  const [paymentMethod, setPaymentMethod] = useState(mode === 'wholesale' ? 'credit' : (isCredit ? 'credit' : 'cash')); // 'cash' or 'vietqr' or 'credit'
+  const [paymentMethod, setPaymentMethod] = useState(isCredit ? 'credit' : 'cash'); // 'cash' or 'vietqr' or 'credit'
   const [cashReceived, setCashReceived] = useState('');
   const [bankInfo, setBankInfo] = useState(null);
   const [orderDate, setOrderDate] = useState(new Date());
@@ -503,10 +502,10 @@ export default function CheckoutConfirmationModal({
                   <span className="font-mono">-{formatPrice(discountType === 'percent' ? (totalAmount * discount) / 100 : Math.min(totalAmount, discount))}</span>
                 </div>
               )}
-              {pointsUsed > 0 && (
+              {pointsEnabled && pointsUsed > 0 && (
                 <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-500/10 p-2 rounded-lg -mx-2 px-2">
                   <span>Dùng điểm tích lũy ({pointsUsed}đ):</span>
-                  <span className="font-mono">-{formatPrice(pointsUsed * 100)}</span>
+                  <span className="font-mono">-{formatPrice(pointsUsed * pointsRedeemRatio)}</span>
                 </div>
               )}
               {totalTaxAmount > 0 && (
@@ -640,7 +639,7 @@ export default function CheckoutConfirmationModal({
                 </div>
               </div>
 
-              {customer && customer.points > 0 && (
+              {pointsEnabled && customer && customer.points > 0 && (
                 <div className="mb-5">
                   <h4 className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mb-2 flex items-center justify-between">
                     <span>Sử Dụng Điểm Tích Lũy</span>
@@ -659,17 +658,17 @@ export default function CheckoutConfirmationModal({
                         if (num > customer.points) num = customer.points;
                         
                         // Limit to max amount of points that cover totalAmount
-                        const maxPointsToCoverTotal = Math.ceil(totalAmount / 100);
+                        const maxPointsToCoverTotal = Math.ceil(totalAmount / pointsRedeemRatio);
                         if (num > maxPointsToCoverTotal) num = maxPointsToCoverTotal;
                         
                         setPointsUsed(num);
                       }}
                       className="flex-1 px-4 py-3 glass-input rounded-xl text-sm font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all shadow-inner"
-                      placeholder="Nhập điểm... (1 điểm = 100đ)"
+                      placeholder={`Nhập điểm... (1 điểm = ${pointsRedeemRatio}đ)`}
                     />
                     {pointsUsed > 0 && (
                       <div className="flex items-center justify-center px-3 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 font-bold rounded-xl border border-emerald-100 dark:border-emerald-800">
-                        -{formatPrice(pointsUsed * 100)}
+                        -{formatPrice(pointsUsed * pointsRedeemRatio)}
                       </div>
                     )}
                   </div>
@@ -729,9 +728,8 @@ export default function CheckoutConfirmationModal({
               </h4>
  
               {/* Segmented Control Selector */}
-              {mode !== 'wholesale' ? (
-                <div className="grid grid-cols-3 gap-2 mb-4">
-                  <motion.button 
+              <div className="grid grid-cols-3 gap-2 mb-4">
+                <motion.button 
                     whileHover={{ y: -1 }}
                     whileTap={{ scale: 0.97 }}
                     type="button"
@@ -801,12 +799,6 @@ export default function CheckoutConfirmationModal({
                     <span>Ghi Nợ</span>
                   </motion.button>
                 </div>
-              ) : (
-                <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-900/35 rounded-xl text-center text-xs font-bold text-amber-700 dark:text-amber-450">
-                  Hình thức thanh toán: GHI NỢ (Bắt buộc cho đơn giao sỉ đại lý)
-                </div>
-              )}
- 
  
               {/* Dynamic Payment Details Area */}
               <AnimatePresence mode="wait">

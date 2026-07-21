@@ -16,6 +16,26 @@
   body.dark {
     @apply bg-[#050505] text-slate-100;
   }
+
+  body.performance-mode * {
+    /* Tắt hoàn toàn hiệu ứng kính mờ (blur) ngốn GPU */
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    
+    /* Tắt các hiệu ứng bóng đổ phức tạp */
+    box-shadow: none !important;
+    text-shadow: none !important;
+    
+    /* Tắt các chuyển động (animation) nặng */
+    animation: none !important;
+    transition-duration: 0.01s !important;
+  }
+
+  body.performance-mode .glass-card,
+  body.performance-mode .glass-card-glow,
+  body.performance-mode .glass-panel {
+    @apply bg-white dark:bg-[#1a1f33] border-slate-200 dark:border-slate-800;
+  }
 }
 
 @layer utilities {
@@ -92,7 +112,7 @@
 @media print {
   @page {
     margin: 0;
-    size: 64mm auto;
+    size: 64mm auto; /* Giữ 64mm để tránh lỗi xả giấy vô tận */
   }
   html, body {
     background: white !important;
@@ -104,23 +124,24 @@
     overflow: visible !important;
   }
   
-  /* Hide the main app container completely during print */
   #root {
     display: none !important;
   }
   
   .print-only {
     display: block !important;
+    width: 64mm !important;
     margin: 0 auto !important;
+    box-sizing: border-box !important;
   }
 }
 
 /* Format the printable receipt globally so offscreen measurement matches actual print size */
 .print-only {
   width: 64mm !important;
-  /* Bù trừ cơ học tối đa: lề trái 7.5mm và lề phải 0.5mm để kéo giãn hết cỡ nội dung sang hai bên rìa */
-  padding: 2mm 0.5mm 15mm 7.5mm !important;
-  box-sizing: border-box;
+  margin: 0 auto !important;
+  padding: 8mm 4mm 15mm 4mm !important;
+  box-sizing: border-box !important;
   background: white !important;
   color: black !important;
   font-family: 'Courier New', Courier, monospace !important;

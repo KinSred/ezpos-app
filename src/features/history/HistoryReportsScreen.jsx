@@ -13,6 +13,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 export default function HistoryReportsScreen() {
   const [activeTab, setActiveTab] = useState('history'); // 'history' or 'reports'
+  
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [activePrintOrder, setActivePrintOrder] = useState(null);
   const [searchPhone, setSearchPhone] = useState('');
@@ -53,7 +54,10 @@ export default function HistoryReportsScreen() {
   // Fetch orders from Dexie
   const orders = useLiveQuery(
     async () => {
-      let allOrders = await db.orders.reverse().toArray();
+      let allOrders = await db.orders.toArray();
+      // Sort by timestamp descending
+      allOrders.sort((a, b) => b.timestamp - a.timestamp);
+      
       if (searchPhone) {
         allOrders = allOrders.filter(o => o.customerPhone && o.customerPhone.includes(searchPhone.trim()));
       }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { db } from '../../../db';
+import { formatPrice, normalizeNumber } from '../../../utils/format';
 
 export default function PrintableReceipt({ order, isBatchPrint = false }) {
   const [tx, setTx] = useState(null);
@@ -25,10 +26,6 @@ export default function PrintableReceipt({ order, isBatchPrint = false }) {
 
   if (!order) return null;
 
-  const formatPrice = (price) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
-  };
-
   const formatDate = (timestamp) => {
     if (!timestamp) return 'Không rõ ngày';
     const date = new Date(timestamp);
@@ -37,65 +34,102 @@ export default function PrintableReceipt({ order, isBatchPrint = false }) {
   };
 
   const calculateSubtotal = () => {
-    return order.items.reduce((sum, item) => sum + (item.price * item.qty), 0);
+    return order.items.reduce((sum, item) => {
+      const quantity = normalizeNumber(item.qty || item.quantity);
+      const unitPrice = normalizeNumber(item.price || item.unitPrice);
+      return sum + (unitPrice * quantity);
+    }, 0);
   };
 
   const isCredit = order.paymentStatus === 'credit';
 
   const displayPrevDebt = order.customerPreviousDebt !== undefined
     ? order.customerPreviousDebt
-    : (tx ? (tx.remainingDebt - tx.amount) : null);
+    : (tx ? tx.previousDebt : null);
 
   const displayNewDebt = order.customerRemainingDebt !== undefined
     ? order.customerRemainingDebt
     : (tx ? tx.remainingDebt : null);
+
   const renderSingleReceipt = (lienLabel) => {
     return (
-      <div className="w-full mx-auto p-1.5 bg-white text-black font-mono text-[13.5px] leading-snug">
+      <div className="w-full mx-auto p-0 bg-white text-black font-mono text-[12.5px] leading-snug">
         {/* Receipt Header */}
         <div className="text-center mb-4">
           <h2 className="text-[17px] font-extrabold uppercase tracking-widest">EZPOS</h2>
-          <p className="text-[11.5px] text-black mt-0.5">Mã ID: {order.storeId || 'POS-STORE'}</p>
-          <p className="text-[11.5px] text-black">Thời gian: {formatDate(order.timestamp)}</p>
-          <h3 className="text-[15px] font-extrabold uppercase mt-2.5 tracking-wide border-t border-b border-black py-1.5">
-            {isCredit ? 'HÓA ĐƠN GHI NỢ' : 'HÓA ĐƠN BÁN HÀNG'}
-          </h3>
-          {lienLabel && (
-            <p className="text-[11.5px] font-bold text-center mt-1.5 text-slate-800 bg-slate-100 py-0.5 rounded tracking-wide">{lienLabel}</p>
-          )}
-          <p className="text-[13px] font-bold mt-1.5">Số: HD-{order.id}</p>
+          <div className="text-[14px] font-bold mt-1 uppercase">HOÁ ĐƠN THANH TOÁN</div>
+          {lienLabel && <div className="text-[12px] font-semibold italic mt-0.5">({lienLabel})</div>}
         </div>
 
-        {/* Divider */}
-        <div className="border-b border-dashed border-black my-2.5"></div>
+        {/* Store Info */}
+        <div className="text-center space-y-0.5 mb-3 border-b border-dashed border-black pb-3">
+          {order.storeInfo?.name && <div className="font-bold text-[14px]">{order.storeInfo.name}</div>}
+          {order.storeInfo?.address && <div>Đ/c: {order.storeInfo.address}</div>}
+          {order.storeInfo?.phone && <div>SĐT: {order.storeInfo.phone}</div>}
+        </div>
 
-        {/* Customer Info if exists */}
-        {order.customerPhone && (
-          <div className="mb-2.5 text-[12.5px] space-y-0.5">
-            <div>Khách hàng: <span className="font-bold">{order.customerName || 'Thành viên'}</span></div>
-            <div>SĐT: {order.customerPhone}</div>
+        {/* Order Info */}
+        <div className="space-y-1 mb-3 border-b border-dashed border-black pb-3">
+          {order.id && (
+            <div className="flex justify-between">
+              <span className="whitespace-nowrap shrink-0">Mã đơn:</span>
+              <span className="font-bold text-right">{order.id}</span>
+            </div>
+          )}
+          <div className="flex justify-between">
+            <span className="whitespace-nowrap shrink-0">Ngày:</span>
+            <span className="text-right">{formatDate(order.timestamp)}</span>
+          </div>
+          {order.cashier && (
+            <div className="flex justify-between gap-1 overflow-hidden">
+              <span className="whitespace-nowrap shrink-0">Thu ngân:</span>
+              <span className="text-right whitespace-nowrap truncate">{order.cashier}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Customer Info */}
+        {order.customerName && (
+          <div className="space-y-0.5 mb-3">
+            <div className="flex justify-between">
+              <span className="whitespace-nowrap shrink-0">Khách hàng:</span>
+              <span className="font-bold text-right">{order.customerName}</span>
+            </div>
+            {order.customerPhone && !order.customerPhone.startsWith('_vl_') && (
+              <div className="flex justify-between">
+                <span className="whitespace-nowrap shrink-0">SĐT:</span>
+                <span className="text-right">{order.customerPhone}</span>
+              </div>
+            )}
           </div>
         )}
-
-        {order.customerPhone && (
+        
+        {/* Divider for Customer Info */}
+        {(order.customerName || order.customerPhone) && (
           <div className="border-b border-dashed border-black my-2.5"></div>
         )}
 
         {/* Items List */}
         <div className="space-y-2.5 my-2.5">
-          <div className="flex justify-between font-bold text-[13px] border-b border-dashed border-black pb-1.5 mb-2">
+          <div className="flex justify-between font-bold text-[12px] border-b border-dashed border-black pb-1.5 mb-2">
             <span>SP / Đơn giá x SL</span>
             <span>Thành tiền</span>
           </div>
 
           {order.items.map((item, index) => {
-            const itemDiscount = item.discountAmount || 0;
+            const quantity = normalizeNumber(item.qty || item.quantity);
+            const unitPrice = normalizeNumber(item.price || item.unitPrice);
+            const amountValue = normalizeNumber(item.amount);
+            const finalAmount = amountValue > 0 ? amountValue : unitPrice * quantity;
+            
+            const itemDiscount = normalizeNumber(item.discountAmount);
             const hasDiscount = itemDiscount > 0;
+            const productName = item.name || item.productName || 'Sản phẩm không tên';
 
             return (
-              <div key={index} className="flex flex-col text-[13px]">
+              <div key={index} className="flex flex-col text-[12px]">
                 <div className="font-semibold text-black uppercase leading-tight">
-                  {item.name} {item.taxRate > 0 ? `(VAT ${item.taxRate}%)` : ''}
+                  {productName} {item.taxRate > 0 ? `(VAT ${item.taxRate}%)` : ''}
                 </div>
                 {hasDiscount && (
                   <div className="text-[11.5px] text-gray-755 italic">
@@ -103,8 +137,8 @@ export default function PrintableReceipt({ order, isBatchPrint = false }) {
                   </div>
                 )}
                 <div className="flex justify-between text-black mt-0.5">
-                  <span>{formatPrice(item.price)} x {item.qty} {item.unit || 'cái'}</span>
-                  <span className="font-bold">{formatPrice(item.price * item.qty)}</span>
+                  <span>{formatPrice(unitPrice)} x {quantity} {item.unit || 'cái'}</span>
+                  <span className="font-bold">{formatPrice(finalAmount)}</span>
                 </div>
               </div>
             );
@@ -115,7 +149,7 @@ export default function PrintableReceipt({ order, isBatchPrint = false }) {
         <div className="border-b border-dashed border-black my-2.5"></div>
 
         {/* Total Calculations */}
-        <div className="space-y-1 text-[13.5px]">
+        <div className="space-y-1 text-[12.5px]">
           <div className="flex justify-between">
             <span>Cộng tiền hàng:</span>
             <span>{formatPrice(calculateSubtotal())}</span>
@@ -156,8 +190,8 @@ export default function PrintableReceipt({ order, isBatchPrint = false }) {
             </div>
           )}
 
-          <div className="flex justify-between text-[14.5px] font-bold border-t border-double border-black pt-1.5 mt-1.5">
-            <span>TỔNG THANH TOÁN:</span>
+          <div className="flex justify-between text-[13.5px] font-bold border-t border-double border-black pt-1.5 mt-1.5 whitespace-nowrap">
+            <span>{isCredit ? 'TỔNG ĐƠN HÀNG:' : 'TỔNG THANH TOÁN:'}</span>
             <span>{formatPrice(order.total)}</span>
           </div>
         </div>
@@ -167,25 +201,27 @@ export default function PrintableReceipt({ order, isBatchPrint = false }) {
 
         {/* Payment Details & Debt Summary */}
         <div className="space-y-1 text-[12.5px]">
-          <div className="flex justify-between">
-            <span>Hình thức mua:</span>
-            <span className="font-bold">{isCredit ? 'Ghi nợ' : (order.paymentMethod === 'vietqr' ? 'Chuyển khoản QR' : 'Tiền mặt')}</span>
-          </div>
+          {!isCredit && (
+            <div className="flex justify-between">
+              <span>Hình thức mua:</span>
+              <span className="font-bold">{order.paymentMethod === 'vietqr' ? 'Chuyển khoản QR' : 'Tiền mặt'}</span>
+            </div>
+          )}
 
           {isCredit ? (
-            <div className="mt-2 pt-1 border-t border-dotted border-black space-y-1 bg-gray-50/50 p-1 rounded">
-              {displayPrevDebt !== null && (
+            <div className="mt-1 pt-1.5 border-t-0 space-y-1 bg-gray-50/50 p-1 rounded">
+              <div className="flex justify-between">
+                <span>Hình thức mua:</span>
+                <span className="font-bold">GHI NỢ</span>
+              </div>
+              {displayPrevDebt !== null && displayPrevDebt > 0 && (
                 <div className="flex justify-between">
                   <span>Dư nợ cũ:</span>
                   <span>{formatPrice(displayPrevDebt)}</span>
                 </div>
               )}
-              <div className="flex justify-between font-bold text-rose-700">
-                <span>Nợ phát sinh đơn này:</span>
-                <span>+{formatPrice(order.total)}</span>
-              </div>
               {displayNewDebt !== null && (
-                <div className="flex justify-between font-extrabold border-t border-dotted border-black pt-1 text-black">
+                <div className="flex justify-between font-extrabold border-t border-dashed border-black pt-1.5 mt-1 text-black text-[13px]">
                   <span>TỔNG NỢ HIỆN TẠI:</span>
                   <span>{formatPrice(displayNewDebt)}</span>
                 </div>

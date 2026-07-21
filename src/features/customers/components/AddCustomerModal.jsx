@@ -18,24 +18,35 @@ export default function AddCustomerModal({ isOpen, onClose, onSuccess }) {
 
   const handleAddCustomer = async (e) => {
     e.preventDefault();
-    const phone = newPhone.trim();
+    let finalPhone = newPhone.trim();
     const name = newName.trim();
     const debt = parseFloat(newDebt.replace(/[^0-9]/g, '')) || 0;
 
-    if (!phone || !name) {
-      toast.error('Vui lòng nhập đầy đủ tên và SĐT');
+    if (!name) {
+      toast.error('Vui lòng nhập tên khách hàng');
       return;
     }
 
+    if (!finalPhone) {
+      finalPhone = `_vl_${Date.now()}`;
+    }
+
     try {
-      const existing = await db.customers.get(phone);
-      if (existing) {
+      const allCustomers = await db.customers.toArray();
+      const existingName = allCustomers.find(c => c.name.toLowerCase() === name.toLowerCase());
+      if (existingName) {
+        toast.error('Tên khách hàng đã tồn tại! Không cho phép trùng tên.');
+        return;
+      }
+
+      const existingPhone = await db.customers.get(finalPhone);
+      if (existingPhone) {
         toast.error('Số điện thoại này đã được đăng ký!');
         return;
       }
 
       await db.customers.add({
-        phone,
+        phone: finalPhone,
         name,
         debt,
         points: 0,
@@ -91,10 +102,9 @@ export default function AddCustomerModal({ isOpen, onClose, onSuccess }) {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-500 dark:text-slate-450 uppercase tracking-wider mb-2">Số Điện Thoại *</label>
+              <label className="block text-xs font-bold text-slate-500 dark:text-slate-450 uppercase tracking-wider mb-2">Số Điện Thoại (Không bắt buộc)</label>
               <input 
                 type="text" 
-                required
                 value={newPhone}
                 onChange={(e) => setNewPhone(e.target.value)}
                 className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:border-sky-500 focus:bg-white dark:focus:bg-slate-900 focus:ring-1 focus:ring-sky-500 focus:outline-none transition-all text-slate-900 dark:text-slate-100 font-semibold"

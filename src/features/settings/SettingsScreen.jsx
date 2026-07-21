@@ -34,6 +34,12 @@ export default function SettingsScreen() {
   const [vatRate, setVatRate] = useState('10');
   const [autoPrintEnabled, setAutoPrintEnabled] = useState(false);
   const [hideStockEnabled, setHideStockEnabled] = useState(false);
+  const [performanceMode, setPerformanceMode] = useState(false);
+
+  // Points Settings
+  const [pointsEnabled, setPointsEnabled] = useState(true);
+  const [pointsEarnRatio, setPointsEarnRatio] = useState('10000');
+  const [pointsRedeemRatio, setPointsRedeemRatio] = useState('100');
 
   // Backup & Cloud Settings
   const [storeId, setStoreId] = useState('');
@@ -107,6 +113,10 @@ export default function SettingsScreen() {
       const sepayKey = await db.settings.get('sepayApiKey');
       const autoPrint = await db.settings.get('autoPrint');
       const hideStock = await db.settings.get('hideStock');
+      const perfMode = await db.settings.get('performanceMode');
+      const ptsEn = await db.settings.get('pointsEnabled');
+      const earnR = await db.settings.get('pointsEarnRatio');
+      const redeemR = await db.settings.get('pointsRedeemRatio');
 
       if (bin) setBankBin(bin.value);
       if (acc) setBankAccount(acc.value);
@@ -118,6 +128,10 @@ export default function SettingsScreen() {
       if (sepayKey) setSepayApiKey(sepayKey.value);
       if (autoPrint) setAutoPrintEnabled(autoPrint.value === 'true');
       if (hideStock) setHideStockEnabled(hideStock.value === 'true');
+      if (perfMode) setPerformanceMode(perfMode.value === 'true');
+      if (ptsEn) setPointsEnabled(ptsEn.value !== 'false'); // Default to true if undefined
+      if (earnR) setPointsEarnRatio(earnR.value);
+      if (redeemR) setPointsRedeemRatio(redeemR.value);
     };
     loadSettings();
   }, []);
@@ -129,7 +143,21 @@ export default function SettingsScreen() {
     if (enabled) {
       toast.success("Đã bật tự động in hóa đơn!");
     } else {
-      toast.success("Đã tắt tự động in hóa đơn.");
+      toast.success("Đã tắt tự động in!");
+    }
+  };
+
+  const handleTogglePerformanceMode = async (e) => {
+    const enabled = e.target.checked;
+    setPerformanceMode(enabled);
+    await db.settings.put({ key: 'performanceMode', value: enabled ? 'true' : 'false' });
+    
+    const message = enabled 
+      ? "Đã bật chế độ hiệu năng cao. Bạn có muốn tải lại ứng dụng ngay bây giờ để áp dụng thay đổi không?" 
+      : "Đã tắt chế độ hiệu năng cao. Bạn có muốn tải lại ứng dụng ngay bây giờ để áp dụng thay đổi không?";
+      
+    if (window.confirm(message)) {
+      window.location.reload();
     }
   };
 
@@ -155,6 +183,21 @@ export default function SettingsScreen() {
     } catch (error) {
       console.error(error);
       toast.error("Lỗi khi lưu cấu hình thuế.");
+    }
+  };
+
+  const handleSavePoints = async (e) => {
+    e.preventDefault();
+    try {
+      await db.settings.bulkPut([
+        { key: 'pointsEnabled', value: pointsEnabled ? 'true' : 'false' },
+        { key: 'pointsEarnRatio', value: pointsEarnRatio },
+        { key: 'pointsRedeemRatio', value: pointsRedeemRatio }
+      ]);
+      toast.success("Đã lưu cấu hình Điểm tích luỹ!");
+    } catch (error) {
+      console.error(error);
+      toast.error("Lỗi khi lưu cấu hình điểm.");
     }
   };
 
@@ -578,6 +621,25 @@ export default function SettingsScreen() {
 
                 <div className="flex items-center justify-between glass-panel p-4 rounded-2xl border border-white/10 transition-all">
                   <div className="pr-3">
+                    <label className="block text-xs font-extrabold flex items-center gap-2 text-rose-600 dark:text-rose-400">
+                      Chế độ tối ưu hiệu năng (MacBook / Máy yếu)
+                    </label>
+                    <span className="text-[10px] text-slate-450 dark:text-slate-550 block mt-0.5 leading-normal">Tắt bớt các hiệu ứng bóng mờ (glassmorphism) và chuyển động để tăng độ mượt mà. Yêu cầu khởi động lại ứng dụng.</span>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={performanceMode}
+                      onChange={handleTogglePerformanceMode}
+                      className="sr-only peer"
+                      aria-label="Chế độ hiệu suất cao"
+                    />
+                    <div className="w-10 h-5.5 bg-slate-200 dark:bg-slate-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-350 after:border after:rounded-full after:h-4.5 after:w-4.5 after:transition-all peer-checked:bg-rose-500 focus:outline-none"></div>
+                  </label>
+                </div>
+
+                <div className="flex items-center justify-between glass-panel p-4 rounded-2xl border border-white/10 transition-all">
+                  <div className="pr-3">
                     <label className="block text-xs font-extrabold text-slate-700 dark:text-slate-300">Kích hoạt Hóa đơn VAT</label>
                     <span className="text-[10px] text-slate-450 dark:text-slate-500 block mt-0.5 leading-normal">Tự động hiển thị và tính toán thuế VAT khi thanh toán và in</span>
                   </div>
@@ -630,6 +692,99 @@ export default function SettingsScreen() {
                   >
                     <Save size={16} />
                     Lưu Cấu Hóa Đơn VAT
+                  </motion.button>
+                </div>
+              </form>
+            </div>
+
+            {/* Cấu hình Điểm Tích Lũy */}
+            <div className="glass-card rounded-3xl p-6 flex flex-col gap-5 transition-colors duration-500 border border-slate-200/40 dark:border-slate-800/40 shadow-sm">
+              <div>
+                <h2 className="text-lg font-extrabold text-slate-850 dark:text-white mb-1 flex items-center gap-2">
+                  <User className="text-emerald-600 dark:text-emerald-400" size={20} />
+                  Cấu Hình Điểm Tích Luỹ
+                </h2>
+                <p className="text-xs text-slate-400 dark:text-slate-500">
+                  Cài đặt tỷ lệ quy đổi khi khách hàng mua hàng và dùng điểm để giảm giá.
+                </p>
+              </div>
+
+              <form onSubmit={handleSavePoints} className="flex flex-col gap-4">
+                <div className="flex items-center justify-between glass-panel p-4 rounded-2xl border border-white/10 transition-all mb-2">
+                  <div className="pr-3">
+                    <label className="block text-xs font-extrabold text-slate-700 dark:text-slate-300">Kích hoạt tích điểm</label>
+                    <span className="text-[10px] text-slate-450 dark:text-slate-500 block mt-0.5 leading-normal">Bật/Tắt tính năng tích điểm cho khách hàng. Nếu tắt, điểm sẽ bị ẩn trên giao diện.</span>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={pointsEnabled}
+                      onChange={(e) => setPointsEnabled(e.target.checked)}
+                      className="sr-only peer"
+                      aria-label="Kích hoạt tích điểm"
+                    />
+                    <div className="w-10 h-5.5 bg-slate-200 dark:bg-slate-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-350 after:border after:rounded-full after:h-4.5 after:w-4.5 after:transition-all peer-checked:bg-emerald-500 focus:outline-none"></div>
+                  </label>
+                </div>
+
+                <AnimatePresence>
+                  {pointsEnabled && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.2, ease: "easeOut" }}
+                      className="flex flex-col gap-4 overflow-hidden"
+                    >
+                      <div>
+                        <label className="flex items-center gap-2 text-[10px] font-bold text-slate-455 dark:text-slate-500 mb-1.5 uppercase tracking-widest pt-2">
+                          Tỷ lệ tích điểm (Mua bao nhiêu VNĐ thì được 1 điểm)
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            min="1"
+                            required
+                            value={pointsEarnRatio}
+                            onChange={(e) => setPointsEarnRatio(e.target.value)}
+                            className="w-full pl-4 pr-12 py-3 glass-input rounded-2xl font-mono font-bold text-sm focus:outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            placeholder="VD: 10000"
+                          />
+                          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500 dark:text-slate-400">VNĐ</span>
+                        </div>
+                        <p className="text-[10px] mt-1 text-slate-400">Mặc định: 10.000 VNĐ = 1 điểm</p>
+                      </div>
+
+                      <div>
+                        <label className="flex items-center gap-2 text-[10px] font-bold text-slate-455 dark:text-slate-500 mb-1.5 uppercase tracking-widest pt-2">
+                          Tỷ lệ tiêu điểm (1 điểm đổi được bao nhiêu VNĐ)
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            min="1"
+                            required
+                            value={pointsRedeemRatio}
+                            onChange={(e) => setPointsRedeemRatio(e.target.value)}
+                            className="w-full pl-4 pr-12 py-3 glass-input rounded-2xl font-mono font-bold text-sm focus:outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            placeholder="VD: 100"
+                          />
+                          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500 dark:text-slate-400">VNĐ</span>
+                        </div>
+                        <p className="text-[10px] mt-1 text-slate-400">Mặc định: 1 điểm = 100 VNĐ</p>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                <div className="pt-4 border-t border-slate-100 dark:border-slate-800/50 flex justify-end">
+                  <motion.button
+                    whileTap={{ scale: 0.97 }}
+                    type="submit"
+                    className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white font-bold rounded-2xl text-xs sm:text-sm shadow-md shadow-emerald-500/15 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                  >
+                    <Save size={16} />
+                    Lưu Tỷ Lệ Điểm
                   </motion.button>
                 </div>
               </form>

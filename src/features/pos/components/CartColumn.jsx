@@ -19,6 +19,7 @@ export default function CartColumn({
   onCheckout,
   activePromotions = [],
   onUpdateCustomPrice,
+  onUpdateSellMode,
   cartTabs = [],
   activeTabId = null,
   onAddTab,
@@ -258,8 +259,37 @@ export default function CartColumn({
 
                     {/* Row 2: Sell Mode & Unit Price */}
                     <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div className="text-xs font-bold text-slate-500 dark:text-slate-400 glass-card px-3.5 py-1.5 rounded-xl">
-                        {item.unit ? item.unit.charAt(0).toUpperCase() + item.unit.slice(1) : 'Lẻ'}
+                      <div className="flex items-center gap-2">
+                        {item.midUnit || item.wholesaleUnit ? (
+                          <div className="flex bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                            <button
+                              onClick={() => onUpdateSellMode(item.cartId, 'base')}
+                              className={`px-2.5 py-1 text-xs font-bold rounded-md transition-colors ${sellMode === 'base' ? 'bg-white dark:bg-slate-700 shadow-sm text-sky-600 dark:text-sky-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                            >
+                              {item.unit ? item.unit.charAt(0).toUpperCase() + item.unit.slice(1) : 'Lẻ'}
+                            </button>
+                            {item.midUnit && (
+                              <button
+                                onClick={() => onUpdateSellMode(item.cartId, 'mid')}
+                                className={`px-2.5 py-1 text-xs font-bold rounded-md transition-colors ${sellMode === 'mid' ? 'bg-white dark:bg-slate-700 shadow-sm text-sky-600 dark:text-sky-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                              >
+                                {item.midUnit}
+                              </button>
+                            )}
+                            {item.wholesaleUnit && (
+                              <button
+                                onClick={() => onUpdateSellMode(item.cartId, 'wholesale')}
+                                className={`px-2.5 py-1 text-xs font-bold rounded-md transition-colors ${sellMode === 'wholesale' ? 'bg-white dark:bg-slate-700 shadow-sm text-sky-600 dark:text-sky-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                              >
+                                {item.wholesaleUnit}
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="text-xs font-bold text-slate-500 dark:text-slate-400 glass-card px-3.5 py-1.5 rounded-xl">
+                            {item.unit ? item.unit.charAt(0).toUpperCase() + item.unit.slice(1) : 'Lẻ'}
+                          </div>
+                        )}
                       </div>
 
                       <div className="text-right flex items-center gap-2">

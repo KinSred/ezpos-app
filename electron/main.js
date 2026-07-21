@@ -35,8 +35,8 @@ function createWindow() {
   if (isDev) {
     // In development, load from Vite dev server (which uses HTTPS because of basicSsl)
     mainWindow.loadURL('https://localhost:5173');
-    // Open the DevTools.
-    mainWindow.webContents.openDevTools();
+    // Tạm thời tắt DevTools khi triển khai
+    // mainWindow.webContents.openDevTools();
   } else {
     // In production, load the built index.html
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
@@ -79,13 +79,13 @@ ipcMain.handle('print-receipt', async (event, order) => {
       })();
     `).catch(() => 0);
 
-    // Căn chính xác bằng vùng in thực tế (printable area) của đầu in XP-80C là 64mm.
-    // CSS mặc định là 96 DPI -> 1 inch = 96 pixels.
-    const widthInInches = 2.519; // 64mm = 2.519 inches
+    // Khổ PDF là 64mm để khớp với @page size: 64mm trong CSS.
+    // Driver CUPS sẽ in file 64mm này lên giấy 80mm và tự canh giữa.
+    const widthInInches = 2.520; // 64mm = 2.520 inches
     let heightInInches = 11.811; // Mặc định 30cm nếu không lấy được chiều cao
 
     if (heightInPixels > 0) {
-      // Cộng thêm 0.5 inch (khoảng 1.2cm) lề dưới cho máy dễ cắt
+      // Cộng thêm 0.5 inch lề dưới cho máy dễ cắt
       heightInInches = (heightInPixels / 96) + 0.5;
     }
 
@@ -128,6 +128,95 @@ ipcMain.handle('print-receipt', async (event, order) => {
     return { success: true };
   } catch (err) {
     console.error('Lỗi in ngầm PDF:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+// --- IPC Handler for Raw ESC/POS via TCP/IP ---
+ipcMain.handle('print-raw-tcp', async (event, { ip, port = 9100, bufferData }) => {
+  return new Promise((resolve) => {
+    import('net').then((net) => {
+      const client = new net.Socket();
+      
+      client.setTimeout(5000); // 5s timeout
+      
+      client.on('error', (err) => {
+        console.error('Lỗi in TCP:', err);
+        client.destroy();
+        resolve({ success: false, error: err.message });
+      });
+      
+      client.on('timeout', () => {
+        console.error('TCP Timeout');
+        client.destroy();
+        resolve({ success: false, error: 'Connection timeout' });
+      });
+      
+      client.connect(port, ip, async () => {
+        // bufferData is received as an array or ArrayBuffer from contextBridge,
+        // convert it back to a Node Buffer
+        const utf8Buffer = Buffer.from(bufferData);
+        
+        const iconv = await import('iconv-lite');
+        const utf8String = utf8Buffer.toString('utf8');
+        const cp1258Buffer = iconv.default.encode(utf8String, 'cp1258');
+
+        client.write(cp1258Buffer, () => {
+          client.destroy(); // Đóng kết nối sau khi gửi xong
+          resolve({ success: true });
+        });
+      });
+    }).catch(err => {
+      resolve({ success: false, error: err.message });
+    });
+  });
+});
+
+// --- IPC Handler for Raw ESC/POS via USB (macOS lp -o raw) ---
+ipcMain.handle('print-raw-usb', async (event, { deviceName, bufferData }) => {
+  try {
+    const fs = await import('fs/promises');
+    const path = await import('path');
+    const os = await import('os');
+    const iconv = await import('iconv-lite');
+    
+    // Tìm máy in nếu không truyền tên
+    let targetDeviceName = deviceName;
+    if (!targetDeviceName) {
+      const printers = await mainWindow.webContents.getPrintersAsync();
+      const targetPrinter = printers.find(p => p.isDefault) || printers[0];
+      targetDeviceName = targetPrinter?.name;
+    }
+
+    if (!targetDeviceName) {
+      return { success: false, error: 'Không tìm thấy máy in USB' };
+    }
+
+    const tempBinPath = path.join(os.tmpdir(), `ezpos_raw_${Date.now()}.bin`);
+    
+    // Ghi trực tiếp raw buffer ra file, không convert string để tránh hỏng dữ liệu Raster/ESC_POS
+    const rawBuffer = Buffer.from(bufferData);
+    await fs.writeFile(tempBinPath, rawBuffer);
+    
+    if (process.platform === 'darwin') {
+      const { exec } = await import('child_process');
+      await new Promise((resolve, reject) => {
+        exec(`lp -d "${targetDeviceName}" -o raw "${tempBinPath}"`, (error) => {
+          if (error) {
+            reject(new Error('Lỗi lệnh lp raw trên macOS: ' + error.message));
+          } else {
+            resolve();
+          }
+        });
+      });
+    } else {
+      return { success: false, error: 'Hệ điều hành chưa hỗ trợ in RAW USB trực tiếp.' };
+    }
+    
+    fs.unlink(tempBinPath).catch(() => {});
+    return { success: true };
+  } catch (err) {
+    console.error('Lỗi in RAW USB:', err);
     return { success: false, error: err.message };
   }
 });

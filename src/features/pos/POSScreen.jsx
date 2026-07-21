@@ -13,20 +13,28 @@ import { silentPrint } from '../../utils/silentPrint';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useAuth } from '../../contexts/AuthContext';
 
-export default function POSScreen({ mode = 'retail', isActive = true }) {
+export default function POSScreen({ isActive = true }) {
   const { currentUser, currentShift } = useAuth();
   const [cartTabs, setCartTabs] = useState(() => {
     try {
-      const saved = localStorage.getItem(`pos_cart_tabs_${mode}`);
+      const saved = localStorage.getItem(`pos_cart_tabs_retail`);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed && parsed.length > 0) return parsed;
+        if (parsed && parsed.length > 0) {
+          return parsed.map(tab => ({
+            ...tab,
+            cartItems: tab.cartItems.map(item => ({
+              ...item,
+              uiKey: item.uiKey || (Date.now() + Math.random())
+            }))
+          }));
+        }
       }
       // Migrate old data if present
-      const oldCart = localStorage.getItem(`pos_cart_${mode}`);
-      const oldCustomer = localStorage.getItem(`pos_customer_${mode}`);
-      const oldDiscount = localStorage.getItem(`pos_discount_${mode}`);
-      const oldDiscountType = localStorage.getItem(`pos_discountType_${mode}`);
+      const oldCart = localStorage.getItem(`pos_cart_retail`);
+      const oldCustomer = localStorage.getItem(`pos_customer_retail`);
+      const oldDiscount = localStorage.getItem(`pos_discount_retail`);
+      const oldDiscountType = localStorage.getItem(`pos_discountType_retail`);
       if (oldCart || oldCustomer) {
         return [{
           id: Date.now(),
@@ -36,7 +44,7 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
           discount: oldDiscount ? JSON.parse(oldDiscount) : 0,
           discountType: oldDiscountType ? JSON.parse(oldDiscountType) : 'percent',
           surcharge: 0,
-          isCredit: mode === 'wholesale'
+          isCredit: false
         }];
       }
     } catch (e) { console.error('Lỗi đọc cart tabs', e); }
@@ -120,6 +128,9 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
   const [globalVatEnabled, setGlobalVatEnabled] = useState(false);
   const [globalVatRate, setGlobalVatRate] = useState(0);
   const [hideStockEnabled, setHideStockEnabled] = useState(false);
+  const [pointsEarnRatio, setPointsEarnRatio] = useState(10000);
+  const [pointsRedeemRatio, setPointsRedeemRatio] = useState(100);
+  const [pointsEnabled, setPointsEnabled] = useState(true);
 
   // States for modals and UI
   const [showAddProductModal, setShowAddProductModal] = useState(false);
@@ -131,8 +142,8 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
 
   // Persist to localStorage
   useEffect(() => {
-    localStorage.setItem(`pos_cart_tabs_${mode}`, JSON.stringify(cartTabs));
-  }, [cartTabs, mode]);
+    localStorage.setItem(`pos_cart_tabs_retail`, JSON.stringify(cartTabs));
+  }, [cartTabs]);
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -140,9 +151,15 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
         const en = await db.settings.get('vatEnabled');
         const rt = await db.settings.get('vatRate');
         const hs = await db.settings.get('hideStock');
+        const ptsEn = await db.settings.get('pointsEnabled');
+        const earnR = await db.settings.get('pointsEarnRatio');
+        const redeemR = await db.settings.get('pointsRedeemRatio');
         setGlobalVatEnabled(en?.value === 'true');
         setGlobalVatRate(rt ? parseFloat(rt.value) : 0);
         setHideStockEnabled(hs?.value === 'true');
+        setPointsEnabled(ptsEn?.value !== 'false');
+        if (earnR) setPointsEarnRatio(parseFloat(earnR.value) || 10000);
+        if (redeemR) setPointsRedeemRatio(parseFloat(redeemR.value) || 100);
       } catch (err) {
         console.error('Failed to load settings', err);
       }
@@ -221,6 +238,33 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
             const firstItem = cartItems[0];
             const diff = e.key === 'ArrowUp' ? 1 : -1;
             updateCartItemQty(firstItem.cartId, diff);
+          }
+          return;
+        }
+      }
+
+      // Handle Arrow Left/Right to switch units for the first item
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+          e.preventDefault();
+          if (cartItems.length > 0) {
+            const firstItem = cartItems[0];
+            const currentMode = firstItem.sellMode || (firstItem.isWholesale ? 'wholesale' : 'base');
+            
+            const availableModes = ['base'];
+            if (firstItem.midUnit) availableModes.push('mid');
+            if (firstItem.wholesaleUnit) availableModes.push('wholesale');
+            
+            if (availableModes.length > 1) {
+              const currentIndex = availableModes.indexOf(currentMode);
+              let nextIndex;
+              if (e.key === 'ArrowRight') {
+                nextIndex = (currentIndex + 1) % availableModes.length;
+              } else {
+                nextIndex = (currentIndex - 1 + availableModes.length) % availableModes.length;
+              }
+              updateCartItemSellMode(firstItem.cartId, availableModes[nextIndex]);
+            }
           }
           return;
         }
@@ -347,6 +391,42 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
     }));
   };
 
+  const updateCartItemSellMode = (oldCartId, newSellMode) => {
+    setCartItems(prev => {
+      const oldItemIndex = prev.findIndex(item => item.cartId === oldCartId);
+      if (oldItemIndex === -1) return prev;
+      
+      const oldItem = prev[oldItemIndex];
+      const newCartId = `${oldItem.id}-${newSellMode}`;
+      
+      if (oldCartId === newCartId) return prev;
+      
+      const existingNewItemIndex = prev.findIndex(item => item.cartId === newCartId);
+      
+      if (existingNewItemIndex !== -1) {
+        const newArray = [...prev];
+        const existingNewItem = newArray[existingNewItemIndex];
+        const currentQty = parseFloat(existingNewItem.qty) || 0;
+        const addQty = parseFloat(oldItem.qty) || 0;
+        
+        newArray[existingNewItemIndex] = {
+          ...existingNewItem,
+          qty: currentQty + addQty
+        };
+        newArray.splice(oldItemIndex, 1);
+        return newArray;
+      } else {
+        const newArray = [...prev];
+        newArray[oldItemIndex] = {
+          ...oldItem,
+          sellMode: newSellMode,
+          cartId: newCartId
+        };
+        return newArray;
+      }
+    });
+  };
+
   const clearCart = () => setCartItems([]);
 
   const handleProductAdded = (newProduct) => {
@@ -366,10 +446,23 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
   };
 
   const getAppliedPrice = (item) => {
-    let basePrice = item.price;
+    const sellMode = item.sellMode || (item.isWholesale ? 'wholesale' : 'base');
+    const isWholesale = sellMode === 'wholesale';
+    const isMid = sellMode === 'mid';
     
-    if (isCredit && customer && customer.specialPrices && customer.specialPrices[item.id] && customer.specialPrices[item.id]['base'] !== undefined) {
-      basePrice = customer.specialPrices[item.id]['base'];
+    let basePrice = item.price;
+    if (isCredit) {
+      basePrice = isWholesale ? (item.wholesaleCreditPrice || item.wholesalePrice || item.price) 
+                 : isMid ? (item.midCreditPrice || item.midPrice || item.price) 
+                 : (item.creditPrice || item.price);
+    } else {
+      basePrice = isWholesale ? (item.wholesalePrice || item.price) 
+                 : isMid ? (item.midPrice || item.price) 
+                 : item.price;
+    }
+    
+    if (isCredit && customer && customer.specialPrices && customer.specialPrices[item.id] && customer.specialPrices[item.id][sellMode] !== undefined) {
+      basePrice = customer.specialPrices[item.id][sellMode];
     } else if (item.quantityDiscounts && item.quantityDiscounts.length > 0) {
       const quantity = parseFloat(item.qty) || 0;
       const applicableDiscount = [...item.quantityDiscounts]
@@ -383,7 +476,7 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
     // Apply manual custom discount if set
     if (item.customDiscount !== undefined && item.customDiscount > 0) {
       basePrice = Math.max(0, basePrice - item.customDiscount);
-    } else if (mode === 'base' && item.quantityDiscounts && item.quantityDiscounts.length > 0) {
+    } else if (item.quantityDiscounts && item.quantityDiscounts.length > 0) {
       // Apply quantity discount if we are selling the base unit
       const qty = parseFloat(item.qty) || 0;
       const sortedTiers = [...item.quantityDiscounts].sort((a, b) => b.minQty - a.minQty);
@@ -415,7 +508,7 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
   });
 
   const totalAmount = Math.max(0, baseTotalAmount - promoDiscountAmount);
-  const pointsDiscountAmount = pointsUsed * 100; // 1 point = 100 VND
+  const pointsDiscountAmount = pointsUsed * pointsRedeemRatio;
   const discountAmount = discountType === 'amount' 
     ? Math.min(totalAmount, discount) 
     : (totalAmount * discount) / 100;
@@ -480,7 +573,7 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
 
           const customDiscount = item.customDiscount || 0;
           let quantityDiscount = 0;
-          if (!customDiscount && mode === 'base' && item.quantityDiscounts && item.quantityDiscounts.length > 0) {
+          if (!customDiscount && item.quantityDiscounts && item.quantityDiscounts.length > 0) {
             const qty = parseFloat(item.qty) || 0;
             const sortedTiers = [...item.quantityDiscounts].sort((a, b) => b.minQty - a.minQty);
             const matchingTier = sortedTiers.find(tier => qty >= tier.minQty);
@@ -567,12 +660,14 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
         let newDebt = customer.debt || 0;
         let newPoints = customer.points || 0;
         
-        // Deduct used points
-        newPoints = Math.max(0, newPoints - pointsUsed);
-        
-        // Add earned points (10,000 VND = 1 point)
-        const earnedPoints = Math.floor(finalAmount / 10000);
-        newPoints += earnedPoints;
+        if (pointsEnabled) {
+          // Deduct used points
+          newPoints = Math.max(0, newPoints - pointsUsed);
+          
+          // Add earned points
+          const earnedPoints = Math.floor(finalAmount / pointsEarnRatio);
+          newPoints += earnedPoints;
+        }
 
         const updateData = { points: newPoints };
 
@@ -708,6 +803,7 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
               onCheckout={() => setShowConfirmModal(true)}
               activePromotions={activePromotions}
               onUpdateCustomPrice={setCartItemCustomDiscount}
+              onUpdateSellMode={updateCartItemSellMode}
               cartTabs={cartTabs}
               activeTabId={activeTabId}
               onAddTab={handleAddTab}
@@ -717,6 +813,8 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
               hideStockEnabled={hideStockEnabled}
               pointsUsed={pointsUsed}
               setPointsUsed={setPointsUsed}
+              pointsEnabled={pointsEnabled}
+              pointsRedeemRatio={pointsRedeemRatio}
               customer={customer}
             />
           </div>
@@ -746,19 +844,23 @@ export default function POSScreen({ mode = 'retail', isActive = true }) {
             setSurcharge={setSurcharge}
             pointsUsed={pointsUsed}
             setPointsUsed={setPointsUsed}
+            pointsEnabled={pointsEnabled}
+            pointsRedeemRatio={pointsRedeemRatio}
             finalAmount={finalAmount}
             customer={customer}
             setCustomer={setCustomer}
             isCredit={isCredit}
             setIsCredit={setIsCredit}
             getAppliedPrice={getAppliedPrice}
-            onClose={() => setShowConfirmModal(false)}
+            onClose={() => {
+              setShowConfirmModal(false);
+              setIsCredit(false);
+            }}
             onConfirm={handleConfirmCheckout}
             getEffectiveTaxRate={getEffectiveTaxRate}
             totalTaxAmount={totalTaxAmount}
             onRemoveItem={removeCartItem}
             onUpdateCustomPrice={setCartItemCustomDiscount}
-            mode={mode}
             showShortcuts={showShortcuts}
           />
         )}

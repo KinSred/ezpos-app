@@ -187,6 +187,23 @@ db.version(9).stores({
   supplierTransactions: '++id, supplierId, timestamp, type, amount, remainingDebt, note'
 });
 
+// Version 10 schema: Add printers and printJobs
+db.version(10).stores({
+  products: '++id, barcode, name, price, stock, unit, lowStockAlert, creditPrice, wholesalePrice, wholesaleCreditPrice, wholesaleUnit, wholesaleConversionRate, taxRate',
+  orders: '++id, timestamp, total, customerPhone, paymentStatus, totalTax, userId, shiftId',
+  settings: 'key, value',
+  customers: 'phone, name, points, debt',
+  promotions: '++id, name, type, isActive',
+  customerTransactions: '++id, customerPhone, timestamp, type, amount, remainingDebt',
+  users: '++id, username, pinHash, role, name, isActive',
+  shifts: '++id, userId, startTime, endTime, startingCash, expectedCash, actualCash, difference, status',
+  attendance: '++id, userId, clockIn, clockOut, date, totalHours',
+  suppliers: '++id, name, phone, debt, note',
+  supplierTransactions: '++id, supplierId, timestamp, type, amount, remainingDebt, note',
+  printers: '++id, name, type, paperSize, vietnameseMode, ip, port',
+  printJobs: '++id, printerId, status, timestamp, type'
+});
+
 // Helper to seed initial settings if empty
 export const initializeSettings = async () => {
   const bankBinCount = await db.settings.where('key').equals('bankBin').count();

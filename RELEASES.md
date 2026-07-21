@@ -4,6 +4,15 @@
 
 ---
 
+## [v1.0.4] - 2026-07-21
+### ✨ Tính năng mới (New Features)
+- **Chuyển Công Nợ Khách Hàng:** Bổ sung tính năng chuyển nợ (một phần hoặc toàn bộ) giữa các khách hàng trực tiếp trong Sổ Khách Hàng. Giao dịch chuyển nợ tự động được ghi nhận mạch lạc vào lịch sử của cả 2 bên.
+- **Tuỳ Chỉnh Cấu Hình Điểm Tích Luỹ:** Thêm module "Điểm Tích Luỹ" vào phần Cài Đặt, cho phép Bật/Tắt hệ thống điểm và linh hoạt tự thiết lập Tỷ lệ Tích Điểm, Tỷ lệ Tiêu Điểm cho quán.
+- **Trực quan hoá Điểm:** Thêm hiển thị Điểm thưởng của từng người ngay trên giao diện danh sách bảng Khách Hàng.
+- **Tối ưu Hóa đơn Ghi nợ:** Tinh gọn bố cục Hóa Đơn khi in cho khách mua nợ, ẩn bớt các thông số thừa, làm nổi bật "Tổng Đơn Hàng" và "Tổng Nợ Hiện Tại" để khách hàng dễ hiểu nhất.
+
+---
+
 ## [v1.0.3] - 2026-07-18
 ### ✨ Cải tiến Giao diện & Tối ưu hóa (UI/UX & Performance)
 - **Nâng cấp giao diện "Liquid Glass" cao cấp:** Thiết kế lại toàn bộ màn hình Thu Ngân (Giỏ hàng & Quét mã) và Bảng Xác Nhận Đơn Hàng theo phong cách kính mờ trong suốt (Glassmorphism), mang lại cảm giác hiện đại, chuyên nghiệp và liền mạch.

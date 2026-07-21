@@ -45,7 +45,9 @@ export default function HistoryModal({ isOpen, onClose, selectedCustomer, custom
               <h3 className="font-extrabold text-2xl text-slate-900 dark:text-white tracking-tight">
                 {selectedCustomer.name}
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 font-mono mt-0.5">SĐT: {selectedCustomer.phone}</p>
+              {!selectedCustomer.phone.startsWith('_vl_') && (
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-mono mt-0.5">SĐT: {selectedCustomer.phone}</p>
+              )}
             </div>
             
             <div className="text-right flex flex-col items-end mr-4">

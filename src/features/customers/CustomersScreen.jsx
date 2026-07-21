@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Users, Search, DollarSign, CreditCard, History, X, Calendar, Receipt, UserPlus, Tag, Plus, Trash2, Edit2 } from 'lucide-react';
+import { Users, Search, DollarSign, CreditCard, History, X, Calendar, Receipt, UserPlus, Tag, Plus, Trash2, Edit2, ArrowRightLeft } from 'lucide-react';
 import PrintDebtModal from './components/PrintDebtModal';
 import SpecialPricesModal from './components/SpecialPricesModal';
 import HistoryModal from './components/HistoryModal';
 import PaymentModal from './components/PaymentModal';
 import EditCustomerModal from './components/EditCustomerModal';
 import AddCustomerModal from './components/AddCustomerModal';
+import TransferDebtModal from './components/TransferDebtModal';
 import PrintableReceipt from '../pos/components/PrintableReceipt';
 import { motion } from 'framer-motion';
 import { db } from '../../db';
@@ -22,6 +23,8 @@ export default function CustomersScreen() {
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [customerHistory, setCustomerHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+
+  const [showTransferModal, setShowTransferModal] = useState(false);
 
   const [showPrintDebtModal, setShowPrintDebtModal] = useState(false);
   const [printDateFrom, setPrintDateFrom] = useState(() => {
@@ -343,16 +346,17 @@ export default function CustomersScreen() {
           <table className="w-full text-left border-collapse min-w-[600px]">
             <thead className="text-[10px] font-bold text-slate-450 dark:text-slate-500 uppercase tracking-widest bg-white/40 dark:bg-[#0a0d1a]/50 backdrop-blur-md sticky top-0 z-10 border-b border-black/5 dark:border-white/5">
               <tr>
-                <th className="py-4 px-6 font-semibold uppercase tracking-wider">Khách Hàng</th>
-                <th className="py-4 px-6 font-semibold uppercase tracking-wider">Số Điện Thoại</th>
-                <th className="py-4 px-6 font-semibold uppercase tracking-wider text-right">Tổng Nợ</th>
-                <th className="py-4 px-6 font-semibold uppercase tracking-wider text-right">Thao Tác</th>
+                <th className="py-4 px-6 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Khách Hàng</th>
+                <th className="py-4 px-6 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Điện Thoại</th>
+                <th className="py-4 px-6 text-right text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Điểm Tích Lũy</th>
+                <th className="py-4 px-6 text-right text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Công Nợ</th>
+                <th className="py-4 px-6 text-right text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Thao Tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-black/5 dark:divide-white/5">
               {filteredCustomers.length === 0 ? (
                 <tr>
-                  <td colSpan="4" className="py-12 text-center text-slate-500 dark:text-slate-400">
+                  <td colSpan="5" className="py-12 text-center text-slate-500 dark:text-slate-400">
                     Không tìm thấy khách hàng nào.
                   </td>
                 </tr>
@@ -370,7 +374,10 @@ export default function CustomersScreen() {
                         <History size={14} className="opacity-0 group-hover:opacity-60 transition-opacity text-sky-500" />
                       </div>
                     </td>
-                    <td className="py-4 px-6 text-slate-500 dark:text-slate-400 font-medium">{customer.phone}</td>
+                    <td className="py-4 px-6 text-slate-500 dark:text-slate-400 font-medium">{customer.phone.startsWith('_vl_') ? 'Không có' : customer.phone}</td>
+                    <td className="py-4 px-6 text-right font-black text-emerald-500 dark:text-emerald-400">
+                      {new Intl.NumberFormat('en-US').format(customer.points || 0)} đ
+                    </td>
                     <td className="py-4 px-6 text-right font-black text-rose-500 dark:text-rose-450">
                       {formatPrice(customer.debt || 0)}
                     </td>
@@ -391,6 +398,19 @@ export default function CustomersScreen() {
                           </button>
                         ) : (
                           <span className="glass-badge-emerald">Không nợ</span>
+                        )}
+                        {(customer.debt || 0) > 0 && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedCustomer(customer);
+                              setShowTransferModal(true);
+                            }}
+                            className="p-2 text-indigo-500 hover:text-white hover:bg-indigo-500 glass-button rounded-xl transition-colors"
+                            title="Chuyển nợ"
+                          >
+                            <ArrowRightLeft size={16} />
+                          </button>
                         )}
                         <button
                           onClick={(e) => handleOpenEdit(customer, e)}
@@ -447,6 +467,14 @@ export default function CustomersScreen() {
         onClose={() => setShowEditModal(false)} 
         onSuccess={() => { setShowEditModal(false); loadCustomers(); }}
         customerToEdit={customerToEdit}
+      />
+
+      {/* Transfer Debt Modal */}
+      <TransferDebtModal
+        isOpen={showTransferModal}
+        onClose={() => setShowTransferModal(false)}
+        onSuccess={() => { setShowTransferModal(false); loadCustomers(); }}
+        fromCustomer={selectedCustomer}
       />
 
       {/* Special Prices Modal */}

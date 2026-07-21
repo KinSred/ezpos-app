@@ -21,10 +21,10 @@ export default function CustomerSelector({ customer, setCustomer, isCredit }) {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
   };
 
-  // Debounced search customer when typing phone
+  // Debounced search customer when typing phone or name
   useEffect(() => {
     const lookupCustomer = async () => {
-      if (phoneInput.length >= 9) {
+      if (phoneInput.trim().length >= 1) {
         const cust = await db.customers.get(phoneInput.trim());
         if (cust) {
           setCustomer(cust);
@@ -42,23 +42,43 @@ export default function CustomerSelector({ customer, setCustomer, isCredit }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phoneInput]);
 
-  const handleRegisterCustomer = async () => {
-    if (!phoneInput || !newCustomerName.trim()) {
-      toast.error("Vui lòng nhập tên khách hàng.");
-      return;
+  const handleRegisterCustomer = async (isQuickDebt = false) => {
+    let finalPhone = phoneInput.trim();
+    let finalName = newCustomerName.trim();
+    
+    if (isQuickDebt) {
+      if (!phoneInput.trim()) {
+        toast.error("Vui lòng nhập tên khách hàng vãng lai.");
+        return;
+      }
+      finalName = phoneInput.trim();
+      finalPhone = `_vl_${Date.now()}`; // dummy phone
+    } else {
+      if (!finalPhone || !finalName) {
+        toast.error("Vui lòng nhập tên khách hàng.");
+        return;
+      }
     }
+
     const newCust = {
-      phone: phoneInput.trim(),
-      name: newCustomerName.trim(),
+      phone: finalPhone,
+      name: finalName,
       points: 0,
       debt: 0
     };
     try {
+      const allCustomers = await db.customers.toArray();
+      const existingName = allCustomers.find(c => c.name.toLowerCase() === finalName.toLowerCase());
+      if (existingName) {
+        toast.error('Tên khách hàng đã tồn tại! Không cho phép trùng tên.');
+        return;
+      }
+
       await db.customers.add(newCust);
       setCustomer(newCust);
       setShowRegisterForm(false);
       setNewCustomerName('');
-      toast.success(`Đã đăng ký khách hàng ${newCust.name}!`);
+      toast.success(`Đã thêm khách hàng ${newCust.name}!`);
     } catch (e) {
       toast.error("Lỗi khi đăng ký thành viên.");
     }
@@ -135,7 +155,9 @@ export default function CustomerSelector({ customer, setCustomer, isCredit }) {
                     >
                       <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 min-w-0 pr-3">
                         <div className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate">{c.name}</div>
-                        <div className="text-xs text-slate-500 dark:text-slate-400 font-mono bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md inline-block w-fit">{c.phone}</div>
+                        {!c.phone.startsWith('_vl_') && (
+                          <div className="text-xs text-slate-500 dark:text-slate-400 font-mono bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md inline-block w-fit">{c.phone}</div>
+                        )}
                       </div>
                       <div className="flex items-center gap-2">
                         {c.points > 0 && (
@@ -165,7 +187,7 @@ export default function CustomerSelector({ customer, setCustomer, isCredit }) {
                 transition={{ duration: 0.2, ease: "easeOut" }}
                 className="space-y-2 pt-2.5 border-t border-slate-200/50 dark:border-slate-800/50 overflow-hidden"
               >
-                <p className="text-xs text-amber-600 dark:text-amber-400 font-semibold">SĐT chưa đăng ký. Tạo nhanh:</p>
+                <p className="text-xs text-amber-600 dark:text-amber-400 font-semibold">Khách hàng chưa đăng ký. Tạo nhanh:</p>
                 <div className="flex gap-1.5">
                   <input 
                     type="text"
@@ -177,10 +199,20 @@ export default function CustomerSelector({ customer, setCustomer, isCredit }) {
                   />
                   <motion.button 
                     whileTap={{ scale: 0.95 }}
-                    onClick={handleRegisterCustomer}
+                    onClick={() => handleRegisterCustomer(false)}
                     className="px-3 py-2 bg-sky-600 text-white text-xs font-bold rounded-xl hover:bg-sky-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
                   >
                     Lưu
+                  </motion.button>
+                </div>
+                {/* Nút Ghi nợ vãng lai */}
+                <div className="flex justify-end pt-1">
+                  <motion.button 
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => handleRegisterCustomer(true)}
+                    className="w-full px-3 py-2 bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-xs font-bold rounded-xl hover:bg-amber-500/20 transition-colors focus:outline-none"
+                  >
+                    + Tạo khách vãng lai (Chỉ lấy tên ở trên)
                   </motion.button>
                 </div>
               </motion.div>

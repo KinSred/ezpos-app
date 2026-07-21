@@ -3,11 +3,17 @@ import { ScanLine, Search, X, Package, Barcode, Command } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { db } from '../../../db';
 import { removeAccents } from '../../../utils/string';
+import { useLiveQuery } from 'dexie-react-hooks';
 
 export default function ScannerColumn({ onScan, onSelectProduct, onAddProduct, isActive = true, showShortcuts }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const onScanRef = useRef(onScan);
+  
+  const performanceMode = useLiveQuery(async () => {
+    const perfMode = await db.settings.get('performanceMode');
+    return perfMode && perfMode.value === 'true';
+  }, []) || false;
 
   // Keep ref updated without triggering re-renders
   useEffect(() => {
@@ -134,23 +140,25 @@ export default function ScannerColumn({ onScan, onSelectProduct, onAddProduct, i
       {!searchQuery ? (
         <div className="flex-1 flex flex-col items-center justify-center p-8 text-center relative overflow-hidden">
           {/* Animated Background Radar Rings */}
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-50 dark:opacity-30">
-            <motion.div 
-              animate={{ scale: [0.8, 1.8, 2.4], opacity: [0.6, 0.2, 0] }}
-              transition={{ duration: 2.5, repeat: Infinity, ease: "easeOut" }}
-              className="absolute w-36 h-36 rounded-full border-2 border-dashed border-sky-400/40"
-            />
-            <motion.div 
-              animate={{ scale: [0.8, 2.2, 2.8], opacity: [0.4, 0.1, 0] }}
-              transition={{ duration: 2.5, delay: 0.8, repeat: Infinity, ease: "easeOut" }}
-              className="absolute w-36 h-36 rounded-full border border-sky-350/20"
-            />
-            <motion.div 
-              animate={{ scale: [0.6, 1.3, 1.9], opacity: [0.5, 0.15, 0] }}
-              transition={{ duration: 2.5, delay: 1.6, repeat: Infinity, ease: "easeOut" }}
-              className="absolute w-36 h-36 rounded-full border-2 border-indigo-400/30"
-            />
-          </div>
+          {!performanceMode && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-50 dark:opacity-30">
+              <motion.div 
+                animate={{ scale: [0.8, 1.8, 2.4], opacity: [0.6, 0.2, 0] }}
+                transition={{ duration: 2.5, repeat: Infinity, ease: "easeOut" }}
+                className="absolute w-36 h-36 rounded-full border-2 border-dashed border-sky-400/40"
+              />
+              <motion.div 
+                animate={{ scale: [0.8, 2.2, 2.8], opacity: [0.4, 0.1, 0] }}
+                transition={{ duration: 2.5, delay: 0.8, repeat: Infinity, ease: "easeOut" }}
+                className="absolute w-36 h-36 rounded-full border border-sky-350/20"
+              />
+              <motion.div 
+                animate={{ scale: [0.6, 1.3, 1.9], opacity: [0.5, 0.15, 0] }}
+                transition={{ duration: 2.5, delay: 1.6, repeat: Infinity, ease: "easeOut" }}
+                className="absolute w-36 h-36 rounded-full border-2 border-indigo-400/30"
+              />
+            </div>
+          )}
 
           <motion.div
             className="relative z-10 w-32 h-32 mb-6 rounded-[2.25rem] glass-card shadow-lg flex flex-col items-center justify-center cursor-pointer group overflow-hidden"
