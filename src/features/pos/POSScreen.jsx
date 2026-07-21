@@ -366,7 +366,8 @@ export default function POSScreen({ isActive = true }) {
     setCartItems(prev => prev.map(item => {
       if (item.cartId === cartId) {
         const currentQty = parseFloat(item.qty) || 0;
-        const newQty = Math.max(0, currentQty + delta);
+        let newQty = Math.max(0, currentQty + delta);
+        if (newQty > 9999) newQty = 9999;
         return { ...item, qty: newQty === 0 ? 1 : newQty }; // If goes to 0 by button, reset to 1
       }
       return item;
@@ -385,6 +386,12 @@ export default function POSScreen({ isActive = true }) {
         val = val.replace(/[^0-9.]/g, ''); // only allow numbers and dot
         const parts = val.split('.');
         if (parts.length > 2) val = parts[0] + '.' + parts.slice(1).join('');
+        
+        let numVal = parseFloat(val);
+        if (!isNaN(numVal) && numVal > 9999) {
+          val = '9999';
+        }
+        
         return { ...item, qty: val };
       }
       return item;
