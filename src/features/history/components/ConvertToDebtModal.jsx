@@ -23,35 +23,52 @@ export default function ConvertToDebtModal({ isOpen, onClose, onSuccess, selecte
     if (!selectedCustomerForDebt || !selectedOrder) return;
     
     try {
-      const order = selectedOrder;
-      const customer = selectedCustomerForDebt;
-      
-      const previousDebt = customer.debt || 0;
-      const newDebt = previousDebt + order.total;
-      
-      // Cập nhật hóa đơn
-      await db.orders.update(order.id, {
-        paymentStatus: 'credit',
-        paymentMethod: 'credit',
-        customerPhone: customer.phone,
-        customerName: customer.name,
-        customerPreviousDebt: previousDebt,
-        customerRemainingDebt: newDebt,
-        cashReceived: 0,
-        changeAmount: 0,
-      });
+      const orderId = selectedOrder.id;
+      const customerPhone = selectedCustomerForDebt.phone;
 
-      // Cập nhật công nợ KH
-      await db.customers.update(customer.phone, { debt: newDebt });
+      await db.transaction('rw', [db.orders, db.customers, db.customerTransactions], async () => {
+        const order = await db.orders.get(orderId);
+        const customer = await db.customers.get(customerPhone);
+        if (!order) throw new Error('Hóa đơn không còn tồn tại.');
+        if (!customer) throw new Error('Khách hàng không còn tồn tại.');
+        if (order.paymentStatus === 'credit' || order.paymentMethod === 'credit') {
+          throw new Error('Hóa đơn này đã là đơn ghi nợ.');
+        }
+        if (order.fullyReturned === true || order.status === 'returned' || (Number(order.total) || 0) <= 0) {
+          throw new Error('Không thể chuyển một hóa đơn đã hoàn toàn bộ sang ghi nợ.');
+        }
+        const hasLoyaltyEffects = (Number(order.pointsUsed) || 0) > 0
+          || (Number(order.pointsEarned) || 0) > 0;
+        if (hasLoyaltyEffects && order.customerPhone !== customer.phone) {
+          throw new Error('Hóa đơn có sử dụng hoặc tích điểm nên chỉ có thể ghi nợ cho khách hàng ban đầu.');
+        }
 
-      // Lưu lịch sử giao dịch
-      await db.customerTransactions.add({
-        customerPhone: customer.phone,
-        timestamp: order.timestamp,
-        type: 'debt',
-        amount: order.total,
-        remainingDebt: newDebt,
-        orderId: order.id
+        const previousDebt = Number(customer.debt) || 0;
+        const amount = Number(order.total) || 0;
+        const newDebt = previousDebt + amount;
+
+        await db.orders.update(order.id, {
+          paymentStatus: 'credit',
+          paymentMethod: 'credit',
+          customerPhone: customer.phone,
+          customerName: customer.name,
+          customerPreviousDebt: previousDebt,
+          customerRemainingDebt: newDebt,
+          cashReceived: 0,
+          transferAmount: 0,
+          changeAmount: 0,
+        });
+        await db.customers.update(customer.phone, { debt: newDebt });
+        await db.customerTransactions.add({
+          customerPhone: customer.phone,
+          timestamp: Date.now(),
+          type: 'debt',
+          amount,
+          previousDebt,
+          remainingDebt: newDebt,
+          orderId: order.id,
+          note: `Chuyển hóa đơn #${order.id} sang ghi nợ`
+        });
       });
       
       toast.success("Đã chuyển hóa đơn sang ghi nợ thành công!");
@@ -60,11 +77,11 @@ export default function ConvertToDebtModal({ isOpen, onClose, onSuccess, selecte
       setSelectedCustomerForDebt(null);
       setCustomerSearchTerm('');
       
-      const updatedOrder = await db.orders.get(order.id);
+      const updatedOrder = await db.orders.get(orderId);
       onSuccess(updatedOrder);
     } catch (err) {
       console.error(err);
-      toast.error("Lỗi khi chuyển sang ghi nợ.");
+      toast.error(err?.message || "Lỗi khi chuyển sang ghi nợ.");
     }
   };
 

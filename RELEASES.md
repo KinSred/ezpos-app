@@ -4,6 +4,31 @@
 
 ---
 
+## [v1.0.5] - 2026-07-22
+# EZPOS v1.0.5 - Transaction Safety, Backup v3 & Remote Scanner Hardening 🛡️
+
+Bản cập nhật v1.0.5 tập trung bảo vệ tính toàn vẹn dữ liệu bán hàng, chuẩn hóa quy trình hoàn/xóa đơn, siết chặt bảo mật tài khoản và làm cho việc sao lưu, in ấn, quét hàng từ điện thoại ổn định hơn.
+
+## ✨ Cải tiến nổi bật (Improvements)
+*   **Sao lưu dữ liệu v3 an toàn hơn:** Kiểm tra cấu trúc và dữ liệu trước khi khôi phục, hỗ trợ tương thích bản sao lưu cũ và giảm nguy cơ nhập dữ liệu hỏng vào cửa hàng.
+*   **Đồng bộ máy quét điện thoại tin cậy hơn:** Thêm PIN kết nối 6 số, xác thực nội dung tin nhắn, giới hạn số lượng và mã yêu cầu để ngăn quét trùng khi mạng chập chờn.
+*   **Báo cáo và kết ca chính xác hơn:** Chuẩn hóa cách phân bổ tiền mặt, chuyển khoản, ghi nợ và tiền thu công nợ; hỗ trợ ca qua ngày và ngăn mở/kết cùng một ca nhiều lần.
+*   **Bảo vệ tài khoản nhân viên:** Tài khoản dùng PIN mặc định phải đổi PIN trước khi đăng nhập đầy đủ.
+
+## 🛠 Sửa lỗi quan trọng & Bảo mật (Fixes & Security)
+*   **Thanh toán nguyên tử:** Lưu hóa đơn, trừ tồn kho, cập nhật công nợ và điểm thưởng trong cùng một giao dịch; nếu có lỗi, toàn bộ thay đổi được hoàn tác thay vì để dữ liệu dở dang.
+*   **Hoàn hàng, xóa đơn và chuyển nợ nhất quán:** Tính đúng tiền hoàn theo chiết khấu, khôi phục tồn kho/công nợ/điểm thưởng và khóa thao tác lặp khi đang xử lý.
+*   **Chặn thanh toán trùng:** Bổ sung khóa xử lý cho nút và phím tắt thanh toán, đồng thời kiểm tra số lượng, giá bán, ngày hóa đơn và số điểm trước khi ghi dữ liệu.
+*   **In ESC/POS nguyên byte:** Không còn chuyển mã làm hỏng lệnh điều khiển hoặc ảnh raster; bổ sung kiểm tra IP, cổng, kích thước dữ liệu và gọi lệnh in macOS an toàn hơn.
+*   **Gia cố dữ liệu khách hàng:** Chuẩn hóa số điện thoại, số tiền và thao tác công nợ; ngăn số âm, dữ liệu không hợp lệ và các cập nhật một phần.
+
+## 📦 Tải xuống (Downloads)
+*   Windows: Tải file `EZPOS Setup 1.0.5.exe`
+
+*Lưu ý: Ứng dụng hoạt động offline-first. Dữ liệu hiện có được giữ nguyên khi cập nhật; nên tạo một bản sao lưu trước khi nâng cấp.*
+
+---
+
 ## [v1.0.4] - 2026-07-21
 # EZPOS v1.0.4 - Smart Search, Point Configs & Advanced Debt Management 🚀
 

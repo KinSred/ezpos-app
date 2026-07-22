@@ -3,6 +3,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs/promises';
 import os from 'os';
+import { execFile } from 'node:child_process';
+import { Socket } from 'node:net';
 import ptp from 'pdf-to-printer';
 import pkg from 'electron-updater';
 const { autoUpdater } = pkg;
@@ -13,6 +15,16 @@ const __dirname = path.dirname(__filename);
 const isDev = !app.isPackaged;
 
 let mainWindow;
+
+const runExecutable = (file, args) => new Promise((resolve, reject) => {
+  execFile(file, args, { windowsHide: true }, (error) => {
+    if (error) {
+      reject(error);
+      return;
+    }
+    resolve();
+  });
+});
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -53,7 +65,7 @@ function createWindow() {
 }
 
 // IPC Handler for Silent Printing using PDF Spooler (Bypass Driver Limits)
-ipcMain.handle('print-receipt', async (event, order) => {
+ipcMain.handle('print-receipt', async () => {
   if (!mainWindow) return { success: false, error: 'No active window' };
 
   try {
@@ -109,16 +121,9 @@ ipcMain.handle('print-receipt', async (event, order) => {
       });
     } else if (process.platform === 'darwin') {
       // Trên macOS: Sử dụng lệnh native `lp` của hệ thống in ấn CUPS tích hợp sẵn
-      const { exec } = await import('child_process');
-      await new Promise((resolve, reject) => {
-        exec(`lp -d "${deviceName}" "${tempPdfPath}"`, (error) => {
-          if (error) {
-            console.error('Lỗi lệnh lp trên macOS:', error);
-            reject(new Error('Lỗi lệnh lp trên macOS: ' + error.message));
-          } else {
-            resolve();
-          }
-        });
+      await runExecutable('lp', ['-d', deviceName, tempPdfPath]).catch((error) => {
+        console.error('Lỗi lệnh lp trên macOS:', error);
+        throw new Error('Lỗi lệnh lp trên macOS: ' + error.message);
       });
     }
 
@@ -133,53 +138,63 @@ ipcMain.handle('print-receipt', async (event, order) => {
 });
 
 // --- IPC Handler for Raw ESC/POS via TCP/IP ---
-ipcMain.handle('print-raw-tcp', async (event, { ip, port = 9100, bufferData }) => {
-  return new Promise((resolve) => {
-    import('net').then((net) => {
-      const client = new net.Socket();
-      
-      client.setTimeout(5000); // 5s timeout
-      
-      client.on('error', (err) => {
-        console.error('Lỗi in TCP:', err);
-        client.destroy();
-        resolve({ success: false, error: err.message });
-      });
-      
-      client.on('timeout', () => {
-        console.error('TCP Timeout');
-        client.destroy();
-        resolve({ success: false, error: 'Connection timeout' });
-      });
-      
-      client.connect(port, ip, async () => {
-        // bufferData is received as an array or ArrayBuffer from contextBridge,
-        // convert it back to a Node Buffer
-        const utf8Buffer = Buffer.from(bufferData);
-        
-        const iconv = await import('iconv-lite');
-        const utf8String = utf8Buffer.toString('utf8');
-        const cp1258Buffer = iconv.default.encode(utf8String, 'cp1258');
+ipcMain.handle('print-raw-tcp', async (_event, payload = {}) => {
+  const { ip, port = 9100, bufferData } = payload || {};
+  if (typeof ip !== 'string' || !ip.trim() || ip.length > 253) {
+    return { success: false, error: 'Địa chỉ máy in không hợp lệ' };
+  }
 
-        client.write(cp1258Buffer, () => {
-          client.destroy(); // Đóng kết nối sau khi gửi xong
-          resolve({ success: true });
-        });
-      });
-    }).catch(err => {
-      resolve({ success: false, error: err.message });
+  const normalizedPort = Number(port);
+  if (!Number.isInteger(normalizedPort) || normalizedPort < 1 || normalizedPort > 65535) {
+    return { success: false, error: 'Cổng máy in không hợp lệ' };
+  }
+
+  if (!Array.isArray(bufferData) || bufferData.length === 0 || bufferData.length > 20 * 1024 * 1024) {
+    return { success: false, error: 'Dữ liệu in không hợp lệ' };
+  }
+
+  if (!bufferData.every(byte => Number.isInteger(byte) && byte >= 0 && byte <= 255)) {
+    return { success: false, error: 'Dữ liệu in chứa byte không hợp lệ' };
+  }
+
+  // Buffer ESC/POS đã được encoder ở renderer tạo đúng encoding. Gửi nguyên byte để
+  // không phá các lệnh điều khiển hoặc dữ liệu ảnh raster bằng một vòng UTF-8/CP1258.
+  const rawBuffer = Buffer.from(bufferData);
+
+  return new Promise((resolve) => {
+    const client = new Socket();
+    let settled = false;
+
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      client.destroy();
+      resolve(result);
+    };
+
+    client.setTimeout(5000);
+
+    client.once('error', (err) => {
+      console.error('Lỗi in TCP:', err);
+      finish({ success: false, error: err.message });
+    });
+
+    client.once('timeout', () => {
+      console.error('TCP Timeout');
+      finish({ success: false, error: 'Connection timeout' });
+    });
+
+    client.connect(normalizedPort, ip.trim(), () => {
+      client.end(rawBuffer, () => finish({ success: true }));
     });
   });
 });
 
 // --- IPC Handler for Raw ESC/POS via USB (macOS lp -o raw) ---
-ipcMain.handle('print-raw-usb', async (event, { deviceName, bufferData }) => {
+ipcMain.handle('print-raw-usb', async (_event, payload = {}) => {
+  const { deviceName, bufferData } = payload || {};
+  let tempBinPath;
   try {
-    const fs = await import('fs/promises');
-    const path = await import('path');
-    const os = await import('os');
-    const iconv = await import('iconv-lite');
-    
     // Tìm máy in nếu không truyền tên
     let targetDeviceName = deviceName;
     if (!targetDeviceName) {
@@ -188,36 +203,39 @@ ipcMain.handle('print-raw-usb', async (event, { deviceName, bufferData }) => {
       targetDeviceName = targetPrinter?.name;
     }
 
-    if (!targetDeviceName) {
+    if (typeof targetDeviceName !== 'string' || !targetDeviceName.trim() || targetDeviceName.length > 255) {
       return { success: false, error: 'Không tìm thấy máy in USB' };
     }
+    targetDeviceName = targetDeviceName.trim();
 
-    const tempBinPath = path.join(os.tmpdir(), `ezpos_raw_${Date.now()}.bin`);
+    if (!Array.isArray(bufferData) || bufferData.length === 0 || bufferData.length > 20 * 1024 * 1024) {
+      return { success: false, error: 'Dữ liệu in không hợp lệ' };
+    }
+
+    if (!bufferData.every(byte => Number.isInteger(byte) && byte >= 0 && byte <= 255)) {
+      return { success: false, error: 'Dữ liệu in chứa byte không hợp lệ' };
+    }
+
+    tempBinPath = path.join(os.tmpdir(), `ezpos_raw_${Date.now()}.bin`);
     
     // Ghi trực tiếp raw buffer ra file, không convert string để tránh hỏng dữ liệu Raster/ESC_POS
     const rawBuffer = Buffer.from(bufferData);
     await fs.writeFile(tempBinPath, rawBuffer);
     
     if (process.platform === 'darwin') {
-      const { exec } = await import('child_process');
-      await new Promise((resolve, reject) => {
-        exec(`lp -d "${targetDeviceName}" -o raw "${tempBinPath}"`, (error) => {
-          if (error) {
-            reject(new Error('Lỗi lệnh lp raw trên macOS: ' + error.message));
-          } else {
-            resolve();
-          }
-        });
+      await runExecutable('lp', ['-d', targetDeviceName, '-o', 'raw', tempBinPath]).catch((error) => {
+        throw new Error('Lỗi lệnh lp raw trên macOS: ' + error.message);
       });
     } else {
       return { success: false, error: 'Hệ điều hành chưa hỗ trợ in RAW USB trực tiếp.' };
     }
-    
-    fs.unlink(tempBinPath).catch(() => {});
+
     return { success: true };
   } catch (err) {
     console.error('Lỗi in RAW USB:', err);
     return { success: false, error: err.message };
+  } finally {
+    if (tempBinPath) fs.unlink(tempBinPath).catch(() => {});
   }
 });
 

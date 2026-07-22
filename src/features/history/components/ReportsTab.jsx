@@ -1,35 +1,85 @@
 import React from 'react';
-import { DollarSign, ShoppingBag, TrendingUp, Percent } from 'lucide-react';
+import { DollarSign, ShoppingBag, TrendingUp } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell } from 'recharts';
 
+const toFiniteNumber = (value, fallback = 0) => {
+  const number = Number(typeof value === 'string' ? value.replace(',', '.') : value);
+  return Number.isFinite(number) ? number : fallback;
+};
+
+const getStoredAmount = (value) => {
+  if (value === null || value === undefined || value === '') return null;
+  const amount = Number(value);
+  return Number.isFinite(amount) ? amount : null;
+};
+
+const clampAmount = (value, max) => Math.min(Math.max(value, 0), max);
+
+const getOrderPaymentBreakdown = (order) => {
+  const total = Math.max(0, toFiniteNumber(order?.total));
+  const method = String(order?.paymentMethod || 'cash').toLowerCase();
+
+  if (order?.paymentStatus === 'credit' || method === 'credit') {
+    return { cash: 0, transfer: 0, credit: total };
+  }
+
+  if (method === 'split') {
+    const storedCash = getStoredAmount(order?.cashReceived);
+    const storedTransfer = getStoredAmount(order?.transferAmount);
+    const cash = storedCash !== null
+      ? clampAmount(storedCash, total)
+      : storedTransfer !== null
+        ? clampAmount(total - storedTransfer, total)
+        : 0;
+
+    return { cash, transfer: Math.max(0, total - cash), credit: 0 };
+  }
+
+  if (['vietqr', 'qr', 'transfer', 'bank_transfer'].includes(method)) {
+    return { cash: 0, transfer: total, credit: 0 };
+  }
+
+  const received = getStoredAmount(order?.cashReceived) ?? total;
+  const change = Math.max(0, toFiniteNumber(order?.changeAmount));
+  return { cash: clampAmount(received - change, total), transfer: 0, credit: 0 };
+};
+
 export default function ReportsTab({ orders, allOrders, setSearchDate, setActiveTab }) {
+  const safeOrders = orders || [];
+  const completedOrders = safeOrders.filter(order => order?.fullyReturned !== true && order?.status !== 'returned');
+
   const formatPrice = (price) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(toFiniteNumber(price));
   };
 
   const today = new Date();
   const todayRevenue = (allOrders || []).reduce((sum, o) => {
     const d = new Date(o.timestamp);
     if (d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear()) {
-      return sum + o.total;
+      return sum + toFiniteNumber(o.total);
     }
     return sum;
   }, 0);
 
-  const totalRevenue = orders.reduce((sum, o) => sum + o.total, 0);
-  const totalOrdersCount = orders.length;
+  const totalRevenue = safeOrders.reduce((sum, o) => sum + toFiniteNumber(o.total), 0);
+  const totalOrdersCount = completedOrders.length;
+  const returnedOrdersCount = safeOrders.length - completedOrders.length;
   const avgOrderValue = totalOrdersCount > 0 ? totalRevenue / totalOrdersCount : 0;
 
   const getTopProducts = () => {
     const productCounts = {};
-    orders.forEach(order => {
-      order.items.forEach(item => {
-        const key = item.name;
+    safeOrders.forEach(order => {
+      (order.items || []).forEach(item => {
+        const key = item.id ?? item.barcode ?? item.name;
+        const quantity = Math.max(0, toFiniteNumber(item.qty));
+        const price = Math.max(0, toFiniteNumber(item.price));
+        if (!key || quantity === 0) return;
+
         if (!productCounts[key]) {
-          productCounts[key] = { name: item.name, qty: 0, revenue: 0, unit: item.unit };
+          productCounts[key] = { id: key, name: item.name, qty: 0, revenue: 0, unit: item.unit };
         }
-        productCounts[key].qty += item.qty;
-        productCounts[key].revenue += item.qty * item.price;
+        productCounts[key].qty += quantity;
+        productCounts[key].revenue += quantity * price;
       });
     });
     return Object.values(productCounts)
@@ -61,12 +111,12 @@ export default function ReportsTab({ orders, allOrders, setSearchDate, setActive
         const day = orderDate.getDate();
 
         if (year === currentYear && month === currentMonth) {
-          chartData[day - 1].thisMonth += order.total;
+          chartData[day - 1].thisMonth += toFiniteNumber(order.total);
         } else if (
           (currentMonth > 0 && year === currentYear && month === currentMonth - 1) ||
           (currentMonth === 0 && year === currentYear - 1 && month === 11)
         ) {
-          chartData[day - 1].lastMonth += order.total;
+          chartData[day - 1].lastMonth += toFiniteNumber(order.total);
         }
       });
     }
@@ -75,9 +125,9 @@ export default function ReportsTab({ orders, allOrders, setSearchDate, setActive
   };
 
   const getPaymentMethodData = () => {
-    let tm = 0;
-    let ck = 0;
-    let qr = 0;
+    let cash = 0;
+    let transfer = 0;
+    let credit = 0;
     
     const today = new Date();
     const currentYear = today.getFullYear();
@@ -87,23 +137,24 @@ export default function ReportsTab({ orders, allOrders, setSearchDate, setActive
       orders.forEach(order => {
         const orderDate = new Date(order.timestamp);
         if (orderDate.getMonth() === currentMonth && orderDate.getFullYear() === currentYear) {
-          const pm = order.paymentMethod || 'cash';
-          if (pm === 'cash') tm += order.total;
-          else if (pm === 'transfer') ck += order.total;
-          else if (pm === 'qr') qr += order.total;
+          const breakdown = getOrderPaymentBreakdown(order);
+          cash += breakdown.cash;
+          transfer += breakdown.transfer;
+          credit += breakdown.credit;
         }
       });
     }
 
     return [
-      { name: 'Tiền mặt', value: tm, color: '#10B981' },
-      { name: 'Chuyển khoản', value: ck, color: '#0EA5E9' },
-      { name: 'QR Code', value: qr, color: '#A855F7' },
+      { name: 'Tiền mặt', value: cash, color: '#10B981' },
+      { name: 'Chuyển khoản / QR', value: transfer, color: '#0EA5E9' },
+      { name: 'Ghi nợ', value: credit, color: '#F59E0B' },
     ].filter(d => d.value > 0);
   };
 
   const topProducts = getTopProducts();
   const chartData = getChartData();
+  const paymentMethodData = getPaymentMethodData();
 
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
@@ -172,6 +223,7 @@ export default function ReportsTab({ orders, allOrders, setSearchDate, setActive
               Tổng đơn hàng
             </div>
             <div className="text-xl font-extrabold text-slate-855 dark:text-white tracking-tight truncate">{totalOrdersCount} đơn</div>
+            {returnedOrdersCount > 0 && <div className="text-[10px] text-rose-500 font-bold mt-1">{returnedOrdersCount} đơn đã hoàn toàn bộ</div>}
           </div>
           <div className="w-12 h-12 bg-emerald-500/10 text-emerald-600 dark:text-emerald-450 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform shadow-xs">
             <ShoppingBag size={20} strokeWidth={2.5} />
@@ -240,12 +292,12 @@ export default function ReportsTab({ orders, allOrders, setSearchDate, setActive
           </div>
 
           <div className="flex-1 w-full min-h-[220px] relative flex flex-col justify-center pb-6">
-            {getPaymentMethodData().length > 0 ? (
+            {paymentMethodData.length > 0 ? (
               <>
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={getPaymentMethodData()}
+                      data={paymentMethodData}
                       cx="50%"
                       cy="50%"
                       innerRadius={65}
@@ -254,7 +306,7 @@ export default function ReportsTab({ orders, allOrders, setSearchDate, setActive
                       dataKey="value"
                       stroke="none"
                     >
-                      {getPaymentMethodData().map((entry, index) => (
+                      {paymentMethodData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
@@ -262,7 +314,7 @@ export default function ReportsTab({ orders, allOrders, setSearchDate, setActive
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="absolute bottom-0 w-full flex justify-center gap-4">
-                  {getPaymentMethodData().map(d => (
+                  {paymentMethodData.map(d => (
                     <div key={d.name} className="flex items-center gap-1.5 text-[10px] text-slate-650 dark:text-slate-400 font-bold uppercase tracking-wider">
                       <div className="w-2.5 h-2.5 rounded-full shadow-xs" style={{ backgroundColor: d.color }}></div>
                       {d.name}

@@ -10,6 +10,14 @@ export default function OrderDetailsDrawer({
   onReturnOrder,
   onDeleteOrder
 }) {
+  const isFullyReturned = selectedOrder?.fullyReturned === true || selectedOrder?.status === 'returned';
+  const paymentMethodLabel = {
+    cash: 'Tiền mặt',
+    vietqr: 'Chuyển khoản QR',
+    transfer: 'Chuyển khoản',
+    split: 'Tiền mặt + Chuyển khoản',
+    credit: 'Ghi nợ'
+  };
   const formatPrice = (price) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
   };
@@ -50,6 +58,7 @@ export default function OrderDetailsDrawer({
               <div>
                 <div className="font-bold text-slate-900 dark:text-slate-100 text-sm">HD-{selectedOrder.id}</div>
                 <div className="text-slate-500 dark:text-slate-400 mt-1">{formatDate(selectedOrder.timestamp)}</div>
+                {isFullyReturned && <div className="mt-2 inline-flex rounded-full bg-rose-100 dark:bg-rose-500/20 px-2 py-1 text-[10px] font-bold text-rose-600 dark:text-rose-400">ĐÃ HOÀN TOÀN BỘ</div>}
               </div>
             </div>
 
@@ -67,7 +76,7 @@ export default function OrderDetailsDrawer({
             <div className="space-y-3">
               <div className="text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider text-xs">Danh sách món</div>
               <div className="divide-y divide-black/5 dark:divide-white/5 text-xs">
-                {selectedOrder.items.map((item, idx) => (
+                {(selectedOrder.items || []).map((item, idx) => (
                     <div key={idx} className="py-2.5 flex justify-between">
                       <div className="pr-2">
                         <div className="font-bold text-slate-900 dark:text-slate-100">{item.name}</div>
@@ -76,13 +85,16 @@ export default function OrderDetailsDrawer({
                       <span className="font-bold text-slate-900 dark:text-slate-100">{formatPrice(item.price * item.qty)}</span>
                     </div>
                 ))}
+                {(selectedOrder.items || []).length === 0 && (
+                  <div className="py-4 text-center italic text-slate-500">Không còn sản phẩm chưa hoàn.</div>
+                )}
               </div>
             </div>
 
             <div className="border-t border-black/5 dark:border-white/5 pt-4 space-y-2 text-xs">
               <div className="flex justify-between text-slate-500 dark:text-slate-400">
                 <span>Tiền hàng:</span>
-                <span>{formatPrice(selectedOrder.items.reduce((sum, i) => sum + (i.price * i.qty), 0))}</span>
+                <span>{formatPrice((selectedOrder.items || []).reduce((sum, i) => sum + (i.price * i.qty), 0))}</span>
               </div>
               {selectedOrder.discount > 0 && (
                 <div className="flex justify-between text-rose-600 dark:text-rose-400">
@@ -105,7 +117,7 @@ export default function OrderDetailsDrawer({
             <div className="bg-sky-50/50 dark:bg-slate-950/40 border border-slate-200/50 dark:border-slate-800/50 rounded-2xl p-4 text-xs space-y-1.5 transition-colors duration-200">
               <div className="flex justify-between">
                 <span className="text-slate-500 dark:text-slate-400">Hình thức:</span>
-                <span className="font-bold text-slate-900 dark:text-slate-100">{selectedOrder.paymentMethod === 'vietqr' ? 'Chuyển khoản QR' : 'Tiền mặt'}</span>
+                <span className="font-bold text-slate-900 dark:text-slate-100">{paymentMethodLabel[selectedOrder.paymentMethod] || 'Khác'}</span>
               </div>
               {selectedOrder.paymentMethod === 'cash' && (
                 <>
@@ -132,7 +144,7 @@ export default function OrderDetailsDrawer({
               In hóa đơn
             </motion.button>
             <div className="flex gap-2 flex-wrap sm:flex-nowrap">
-              {selectedOrder.paymentStatus !== 'credit' && (
+              {!isFullyReturned && selectedOrder.paymentStatus !== 'credit' && (
                 <motion.button
                   whileTap={{ scale: 0.95 }}
                   onClick={() => onConvertToDebt(selectedOrder)}
@@ -142,21 +154,25 @@ export default function OrderDetailsDrawer({
                   Ghi nợ
                 </motion.button>
               )}
-              <motion.button
-                whileTap={{ scale: 0.95 }}
-                onClick={() => onReturnOrder(selectedOrder)}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-amber-50 text-amber-600 hover:bg-amber-500 hover:text-white border border-amber-200/50 text-xs font-bold rounded-xl shadow-sm transition-all focus:outline-none"
-              >
-                Trả 1 phần
-              </motion.button>
-              <motion.button
-                whileTap={{ scale: 0.95 }}
-                onClick={() => onDeleteOrder(selectedOrder)}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-rose-50 text-rose-600 hover:bg-rose-500 hover:text-white border border-rose-200/50 text-xs font-bold rounded-xl shadow-sm transition-all focus:outline-none"
-              >
-                <Trash2 size={14} />
-                Hủy HĐ
-              </motion.button>
+              {!isFullyReturned && (
+                <>
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => onReturnOrder(selectedOrder)}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-amber-50 text-amber-600 hover:bg-amber-500 hover:text-white border border-amber-200/50 text-xs font-bold rounded-xl shadow-sm transition-all focus:outline-none"
+                  >
+                    Trả 1 phần
+                  </motion.button>
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => onDeleteOrder(selectedOrder)}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-rose-50 text-rose-600 hover:bg-rose-500 hover:text-white border border-rose-200/50 text-xs font-bold rounded-xl shadow-sm transition-all focus:outline-none"
+                  >
+                    <Trash2 size={14} />
+                    Hủy HĐ
+                  </motion.button>
+                </>
+              )}
             </div>
           </div>
         </motion.div>

@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Square, DollarSign, Calculator, FileText, Printer, LogOut, CheckCircle2 } from 'lucide-react';
+import { format } from 'date-fns';
+import { Square, Calculator, FileText, Printer, LogOut, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function EndShiftModal({ onClose }) {
@@ -9,45 +11,63 @@ export default function EndShiftModal({ onClose }) {
   const [actualCash, setActualCash] = useState('');
   const [loading, setLoading] = useState(false);
   const [zReportData, setZReportData] = useState(null);
+  const submitLockRef = useRef(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (submitLockRef.current) return;
     if (!actualCash && actualCash !== '0') {
       toast.error("Vui lòng nhập số tiền mặt có trong két");
       return;
     }
 
+    submitLockRef.current = true;
     setLoading(true);
-    const parsedCash = parseInt(actualCash.replace(/,/g, ''));
-    // endShift will return shift data but won't logout automatically (false param)
-    const result = await endShift(parsedCash, false);
-    setLoading(false);
-
-    if (result && result.success) {
-      toast.success("Đã lưu ca! Xem báo cáo Z cuối ngày.");
-      setZReportData(result);
-    } else {
-      toast.error(result?.error || "Lỗi khi giao ca");
+    try {
+      const parsedCash = parseInt(actualCash.replace(/,/g, ''), 10);
+      // Keep the user signed in long enough to inspect/print the Z-report.
+      const result = await endShift(parsedCash, false);
+      if (result && result.success) {
+        toast.success("Đã lưu ca! Xem báo cáo Z cuối ngày.");
+        setZReportData(result);
+      } else {
+        toast.error(result?.error || "Lỗi khi giao ca");
+      }
+    } finally {
+      submitLockRef.current = false;
+      setLoading(false);
     }
   };
 
   const handleFormatCurrency = (e) => {
     let val = e.target.value.replace(/[^0-9]/g, '');
     if (val) {
-      val = parseInt(val).toLocaleString('en-US');
+      val = parseInt(val, 10).toLocaleString('en-US');
     }
     setActualCash(val);
   };
 
   const formatPrice = (price) => {
-    return new Intl.NumberFormat('vi-VN').format(price || 0) + 'đ';
+    const amount = Number(price);
+    return new Intl.NumberFormat('vi-VN').format(Number.isFinite(amount) ? amount : 0) + 'đ';
   };
 
   const handlePrintZReport = async () => {
-    // In a real app, this would format an HTML string and send to the electron printer
-    toast.success("Đang gửi lệnh in báo cáo Z...");
-    if (window.electronAPI && window.electronAPI.silentPrint) {
-       await window.electronAPI.silentPrint();
+    try {
+      if (window.electronAPI && typeof window.electronAPI.silentPrint === 'function') {
+        const result = await window.electronAPI.silentPrint({
+          type: 'z-report',
+          shiftId: zReportData?.shift?.id
+        });
+        if (!result?.success) {
+          throw new Error(result?.error || 'Máy in không phản hồi');
+        }
+      } else {
+        window.print();
+      }
+      toast.success("Đã gửi báo cáo Z đến máy in");
+    } catch (error) {
+      toast.error(`Không thể in báo cáo Z: ${error.message}`);
     }
   };
 
@@ -56,9 +76,20 @@ export default function EndShiftModal({ onClose }) {
     onClose();
   };
 
+  const paymentSummary = zReportData?.paymentSummary || {
+    cash: 0,
+    transfer: 0,
+    credit: 0,
+    total: 0
+  };
+  const collectionSummary = zReportData?.collectionSummary || { cash: 0, transfer: 0, total: 0 };
+
+  const reportTime = zReportData?.shift?.endTime || Date.now();
+
   return (
-    <AnimatePresence>
-      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-md p-4">
+    <>
+      <AnimatePresence>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-md p-4">
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -73,10 +104,10 @@ export default function EndShiftModal({ onClose }) {
                   </div>
                   <div>
                     <h2 className="text-xl font-bold text-slate-800 dark:text-white">Báo Cáo Cuối Ca (Z-Report)</h2>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">{format(new Date(), 'dd/MM/yyyy HH:mm')}</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">{format(new Date(reportTime), 'dd/MM/yyyy HH:mm')}</p>
                   </div>
                 </div>
-                <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 glass-button rounded-full">
+                <button onClick={handleFinalLogout} className="p-2 text-slate-400 hover:text-slate-600 glass-button rounded-full" title="Đăng xuất">
                   <X size={20} />
                 </button>
               </div>
@@ -91,15 +122,35 @@ export default function EndShiftModal({ onClose }) {
                   <div className="flex justify-between">
                     <span>Doanh thu Tiền mặt:</span>
                     <span className="font-bold">
-                      {formatPrice(zReportData.shiftOrders.filter(o => o.paymentMethod === 'cash').reduce((sum, o) => sum + (o.cashReceived || o.total) - (o.changeAmount || 0), 0))}
+                      {formatPrice(paymentSummary.cash)}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Doanh thu Chuyển khoản:</span>
+                    <span>Doanh thu Chuyển khoản/QR:</span>
                     <span className="font-bold text-sky-600 dark:text-sky-400">
-                      {formatPrice(zReportData.shiftOrders.filter(o => o.paymentMethod === 'transfer').reduce((sum, o) => sum + o.total, 0))}
+                      {formatPrice(paymentSummary.transfer)}
                     </span>
                   </div>
+                  {collectionSummary.total > 0 && (
+                    <>
+                      <div className="flex justify-between text-emerald-700 dark:text-emerald-400">
+                        <span>Thu nợ tiền mặt:</span>
+                        <span className="font-bold">{formatPrice(collectionSummary.cash)}</span>
+                      </div>
+                      <div className="flex justify-between text-sky-700 dark:text-sky-400">
+                        <span>Thu nợ chuyển khoản:</span>
+                        <span className="font-bold">{formatPrice(collectionSummary.transfer)}</span>
+                      </div>
+                    </>
+                  )}
+                  {paymentSummary.credit > 0 && (
+                    <div className="flex justify-between">
+                      <span>Doanh thu ghi nợ:</span>
+                      <span className="font-bold text-amber-600 dark:text-amber-400">
+                        {formatPrice(paymentSummary.credit)}
+                      </span>
+                    </div>
+                  )}
                   
                   <div className="flex justify-between pt-2 border-t border-slate-200 dark:border-slate-700">
                     <span>Tổng tiền mặt trên máy tính:</span>
@@ -195,7 +246,30 @@ export default function EndShiftModal({ onClose }) {
             </div>
           )}
         </motion.div>
-      </div>
-    </AnimatePresence>
+        </div>
+      </AnimatePresence>
+
+      {zReportData && createPortal(
+        <div className="print-only text-[12px] leading-relaxed">
+          <div className="text-center font-bold text-lg">BÁO CÁO CUỐI CA</div>
+          <div className="text-center mb-3">{format(new Date(reportTime), 'dd/MM/yyyy HH:mm')}</div>
+          <div>Thu ngân: <strong>{currentUser?.name || '—'}</strong></div>
+          <div>Mã ca: <strong>#{zReportData.shift.id}</strong></div>
+          <div className="border-t border-dashed border-black my-2" />
+          <div className="flex justify-between"><span>Tiền đầu ca</span><strong>{formatPrice(zReportData.shift.startingCash)}</strong></div>
+          <div className="flex justify-between"><span>Tiền mặt bán hàng</span><strong>{formatPrice(paymentSummary.cash)}</strong></div>
+          <div className="flex justify-between"><span>Chuyển khoản/QR</span><strong>{formatPrice(paymentSummary.transfer)}</strong></div>
+          <div className="flex justify-between"><span>Ghi nợ</span><strong>{formatPrice(paymentSummary.credit)}</strong></div>
+          <div className="flex justify-between"><span>Thu nợ tiền mặt</span><strong>{formatPrice(collectionSummary.cash)}</strong></div>
+          <div className="flex justify-between"><span>Thu nợ chuyển khoản</span><strong>{formatPrice(collectionSummary.transfer)}</strong></div>
+          <div className="flex justify-between"><span>Tổng doanh thu</span><strong>{formatPrice(paymentSummary.total)}</strong></div>
+          <div className="border-t border-dashed border-black my-2" />
+          <div className="flex justify-between"><span>Tiền mặt dự kiến</span><strong>{formatPrice(zReportData.expectedCash)}</strong></div>
+          <div className="flex justify-between"><span>Tiền mặt thực tế</span><strong>{formatPrice(zReportData.shift.actualCash)}</strong></div>
+          <div className="flex justify-between text-base mt-1"><span>Chênh lệch</span><strong>{formatPrice(zReportData.difference)}</strong></div>
+        </div>,
+        document.body
+      )}
+    </>
   );
 }

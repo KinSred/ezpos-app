@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { db } from '../../db';
-import { Settings, Save, CreditCard, Building2, User, Download, Upload, Cloud, ShieldAlert, Key, Copy, Check, Receipt, Battery, ChevronDown, DownloadCloud, RefreshCw, Info, Keyboard, Command, ArrowLeft, ArrowRight, CornerDownLeft } from 'lucide-react';
+import { Settings, Save, CreditCard, User, Download, Upload, Cloud, ShieldAlert, Key, Copy, Check, Receipt, ChevronDown, DownloadCloud, RefreshCw, Info, Keyboard, Command, ArrowLeft, ArrowRight, CornerDownLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { generateBackupData, restoreBackupData, syncToCloud, fetchFromCloud } from '../../utils/backup';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -263,15 +263,27 @@ export default function SettingsScreen() {
 
   const handleToggleCloudSync = async (e) => {
     const enabled = e.target.checked;
+    if (enabled && !window.confirm(
+      'Đồng bộ hiện dùng kho KVDB ẩn danh. API key/PIN sẽ bị loại bỏ, nhưng đơn hàng và thông tin khách hàng vẫn được gửi lên dịch vụ bên thứ ba. Chỉ tiếp tục nếu bạn chấp nhận rủi ro này.'
+    )) {
+      return;
+    }
     setCloudSyncEnabled(enabled);
     await db.settings.put({ key: 'cloudSyncEnabled', value: enabled ? 'true' : 'false' });
 
     if (enabled) {
-      const myStoreId = storeId || 'POS-DEFAULT';
-      const success = await syncToCloud(myStoreId);
+      if (!storeId?.trim()) {
+        setCloudSyncEnabled(false);
+        await db.settings.put({ key: 'cloudSyncEnabled', value: 'false' });
+        toast.error('Thiếu Store ID hợp lệ. Vui lòng tải lại ứng dụng trước khi bật đồng bộ.');
+        return;
+      }
+      const success = await syncToCloud(storeId);
       if (success) {
         toast.success("Đã kích hoạt đồng bộ đám mây và lưu bản sao đầu tiên!");
       } else {
+        setCloudSyncEnabled(false);
+        await db.settings.put({ key: 'cloudSyncEnabled', value: 'false' });
         toast.error("Không thể lưu bản sao lên đám mây. Vui lòng kiểm tra kết nối.");
       }
     } else {
@@ -298,7 +310,7 @@ export default function SettingsScreen() {
           await db.settings.put({ key: 'cloudSyncEnabled', value: 'true' });
           toast.success("Đã khôi phục dữ liệu từ Đám mây thành công!");
           setTimeout(() => window.location.reload(), 1000);
-        } catch (err) {
+        } catch {
           toast.error("Có lỗi xảy ra khi khôi phục dữ liệu.");
         }
       } else {
@@ -545,7 +557,7 @@ export default function SettingsScreen() {
               </div>
 
               <div className="text-[11px] font-semibold text-slate-550 dark:text-slate-450 leading-relaxed mb-5">
-                💡 **Lưu ý bảo mật:** Hãy sao chép và cất giữ Mã ID này. Khi cần đổi máy tính hoặc khôi phục dữ liệu cũ, chỉ cần nhập mã này vào ô bên dưới.
+                💡 <strong>Lưu ý bảo mật:</strong> Store ID hoạt động như chìa khóa truy cập bản sao ẩn danh. Bản cloud loại bỏ PIN/API key nhưng dữ liệu đơn hàng và khách hàng chưa được mã hóa đầu cuối. Không chia sẻ ID công khai.
               </div>
 
               {/* Ô Nhập để khôi phục từ Cloud */}

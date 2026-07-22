@@ -15,7 +15,7 @@ export default function EditCustomerModal({ isOpen, onClose, onSuccess, customer
       setEditPhone(customerToEdit.phone);
       setEditDebt(customerToEdit.debt ? customerToEdit.debt.toString() : '0');
     }
-  }, [customerToEdit]);
+  }, [customerToEdit, isOpen]);
 
   const formatNumberWithCommas = (val) => {
     if (val === undefined || val === null || val === '') return '';
@@ -48,33 +48,45 @@ export default function EditCustomerModal({ isOpen, onClose, onSuccess, customer
       }
 
       if (phone !== customerToEdit.phone) {
-        // 2. Check unique phone
         const existingPhone = await db.customers.get(phone);
         if (existingPhone) {
           toast.error('Số điện thoại này đã được sử dụng bởi khách hàng khác!');
           return;
         }
+      }
 
-        // Phone changed: Cascade update
-        await db.transaction('rw', db.customers, db.orders, db.customerTransactions, async () => {
-          const oldData = await db.customers.get(customerToEdit.phone);
+      await db.transaction('rw', [db.customers, db.orders, db.customerTransactions], async () => {
+        const oldData = await db.customers.get(customerToEdit.phone);
+        if (!oldData) throw new Error('Khách hàng không còn tồn tại.');
+        const previousDebt = Number(oldData.debt) || 0;
+
+        if (phone !== customerToEdit.phone) {
           await db.customers.add({ ...oldData, phone, name, debt });
           await db.orders.where('customerPhone').equals(customerToEdit.phone).modify({ customerPhone: phone });
-          if (db.customerTransactions) {
-            await db.customerTransactions.where('customerPhone').equals(customerToEdit.phone).modify({ customerPhone: phone });
-          }
+          await db.customerTransactions.where('customerPhone').equals(customerToEdit.phone).modify({ customerPhone: phone });
           await db.customers.delete(customerToEdit.phone);
-        });
-      } else {
-        // Just update name and debt
-        await db.customers.update(customerToEdit.phone, { name, debt });
-      }
+        } else {
+          await db.customers.update(customerToEdit.phone, { name, debt });
+        }
+
+        if (debt !== previousDebt) {
+          await db.customerTransactions.add({
+            customerPhone: phone,
+            timestamp: Date.now(),
+            type: debt > previousDebt ? 'debt' : 'payment',
+            amount: Math.abs(debt - previousDebt),
+            note: 'Điều chỉnh công nợ thủ công',
+            previousDebt,
+            remainingDebt: debt
+          });
+        }
+      });
 
       toast.success('Đã cập nhật thông tin khách hàng!');
       onSuccess();
     } catch (error) {
       console.error(error);
-      toast.error('Lỗi khi cập nhật khách hàng');
+      toast.error(error?.message || 'Lỗi khi cập nhật khách hàng');
     }
   };
 

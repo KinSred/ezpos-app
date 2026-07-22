@@ -1,12 +1,85 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Scan, CheckCircle2, Smartphone, Search, ArrowRight, PackagePlus, ChevronLeft, Package, Info } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Peer } from 'peerjs';
+import { useLocation } from 'react-router-dom';
+
+const PEER_PREFIX = 'taphoa-pos-';
+const PIN_LENGTH = 6;
+const PIN_PATTERN = /^\d{6}$/;
+const REQUEST_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const MAX_QUERY_LENGTH = 100;
+const MAX_STOCK_ADDITION = 1_000_000;
+const MAX_SEARCH_RESULTS = 10;
+
+const isRecord = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+const isProductId = value => Number.isSafeInteger(value) && value > 0;
+const isRequestId = value => typeof value === 'string' && REQUEST_ID_PATTERN.test(value);
+
+const safeText = (value, fallback = '', maxLength = 120) => {
+  if (typeof value !== 'string') return fallback;
+  const normalized = value.trim();
+  return normalized ? normalized.slice(0, maxLength) : fallback;
+};
+
+const sanitizeConversionRate = value => {
+  if (value === undefined || value === null) return undefined;
+  const rate = Number(value);
+  return Number.isSafeInteger(rate) && rate > 0 && rate <= MAX_STOCK_ADDITION ? rate : null;
+};
+
+const sanitizeRemoteProduct = product => {
+  if (!isRecord(product) || !isProductId(product.id)) return null;
+
+  const name = safeText(product.name, '', 200);
+  const stock = Number(product.stock);
+  const midConversionRate = sanitizeConversionRate(product.midConversionRate);
+  const wholesaleConversionRate = sanitizeConversionRate(product.wholesaleConversionRate);
+
+  if (!name || !Number.isFinite(stock) || midConversionRate === null || wholesaleConversionRate === null) {
+    return null;
+  }
+
+  return {
+    id: product.id,
+    name,
+    barcode: safeText(product.barcode, '', 100),
+    stock,
+    unit: safeText(product.unit, 'cái', 30),
+    midUnit: safeText(product.midUnit, '', 30) || undefined,
+    midConversionRate,
+    wholesaleUnit: safeText(product.wholesaleUnit, '', 30) || undefined,
+    wholesaleConversionRate
+  };
+};
+
+const sanitizeQuantityInput = value => value.replace(/\D/g, '').slice(0, 7);
+
+const parseQuantity = value => {
+  if (!value) return 0;
+  if (!/^\d+$/.test(value)) return Number.NaN;
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : Number.NaN;
+};
+
+const createRequestId = () => {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  if (!globalThis.crypto?.getRandomValues) throw new Error('Trình duyệt không hỗ trợ tạo mã yêu cầu an toàn');
+
+  const bytes = new Uint8Array(16);
+  globalThis.crypto.getRandomValues(bytes);
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = [...bytes].map(byte => byte.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+};
 
 export default function RemoteScanner() {
+  const location = useLocation();
   const [pin, setPin] = useState('');
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [isUpdatingStock, setIsUpdatingStock] = useState(false);
 
   const [activeTab, setActiveTab] = useState('scan'); // 'scan', 'product'
 
@@ -22,100 +95,219 @@ export default function RemoteScanner() {
   const connRef = useRef(null);
   const searchInputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
+  const connectionTimeoutRef = useRef(null);
+  const stockRequestTimeoutRef = useRef(null);
+  const pendingStockRequestRef = useRef(null);
+  const hostPinRef = useRef('');
 
-  useEffect(() => {
-    // Check if PIN is in URL
-    const params = new URLSearchParams(window.location.search);
-    const pinParam = params.get('pin');
-    if (pinParam && pinParam.length === 4) {
-      setPin(pinParam);
-      // Auto connect after a short delay
-      setTimeout(() => {
-        connectToHostWithPin(pinParam);
-      }, 500);
+  const clearStockRequest = useCallback((forgetRequest = true) => {
+    if (stockRequestTimeoutRef.current) {
+      clearTimeout(stockRequestTimeoutRef.current);
+      stockRequestTimeoutRef.current = null;
     }
-
-    return () => {
-      if (peerRef.current) peerRef.current.destroy();
-    };
+    if (forgetRequest) pendingStockRequestRef.current = null;
+    setIsUpdatingStock(false);
   }, []);
 
-  const connectToHostWithPin = (pinToUse) => {
-    if (!pinToUse || pinToUse.trim().length < 4) return;
+  const resetProductForm = useCallback(() => {
+    setScannedProduct(null);
+    setQtyBase('');
+    setQtyMid('');
+    setQtyWholesale('');
+    setSearchTerm('');
+    setSuggestions([]);
+    setActiveTab('scan');
+    setTimeout(() => searchInputRef.current?.focus(), 300);
+  }, []);
+
+  const connectToHostWithPin = useCallback((pinToUse) => {
+    const normalizedPin = String(pinToUse || '').trim();
+    if (!PIN_PATTERN.test(normalizedPin)) {
+      toast.error(`Mã PIN phải gồm đúng ${PIN_LENGTH} chữ số.`);
+      return;
+    }
+
+    if (connectionTimeoutRef.current) clearTimeout(connectionTimeoutRef.current);
+    const previousConnection = connRef.current;
+    const previousPeer = peerRef.current;
+    connRef.current = null;
+    peerRef.current = null;
+    previousConnection?.close();
+    previousPeer?.destroy();
+    if (hostPinRef.current && hostPinRef.current !== normalizedPin) {
+      clearStockRequest();
+      resetProductForm();
+    } else {
+      clearStockRequest(false);
+    }
+    hostPinRef.current = normalizedPin;
+    setIsConnected(false);
     setIsConnecting(true);
 
     const peer = new Peer();
     peerRef.current = peer;
 
-    peer.on('open', (id) => {
-      const fullHostId = `taphoa-pos-${pinToUse.trim()}`;
-      const conn = peer.connect(fullHostId);
+    connectionTimeoutRef.current = setTimeout(() => {
+      if (peerRef.current !== peer) return;
+      setIsConnecting(false);
+      toast.error('Kết nối quá thời gian. Hãy kiểm tra phiên trên máy tính.');
+      const pendingConnection = connRef.current;
+      connRef.current = null;
+      peerRef.current = null;
+      pendingConnection?.close();
+      peer.destroy();
+    }, 10_000);
+
+    peer.on('open', () => {
+      if (peerRef.current !== peer) return;
+      const conn = peer.connect(`${PEER_PREFIX}${normalizedPin}`, { reliable: true });
+      connRef.current = conn;
 
       conn.on('open', () => {
+        if (connRef.current !== conn) return;
+        if (connectionTimeoutRef.current) {
+          clearTimeout(connectionTimeoutRef.current);
+          connectionTimeoutRef.current = null;
+        }
         setIsConnected(true);
         setIsConnecting(false);
-        connRef.current = conn;
-        toast.success("Đã kết nối với Máy tính!");
-        setTimeout(() => {
-          if (searchInputRef.current) searchInputRef.current.focus();
-        }, 500);
+        toast.success('Đã kết nối với máy tính!');
+        setTimeout(() => searchInputRef.current?.focus(), 300);
       });
 
       conn.on('data', (data) => {
+        if (!isRecord(data) || typeof data.type !== 'string') {
+          toast.error('Máy tính gửi phản hồi không hợp lệ.');
+          return;
+        }
+
         if (data.type === 'SEARCH_RESULTS') {
+          if (!Array.isArray(data.results) || data.results.length > MAX_SEARCH_RESULTS || typeof data.isTyping !== 'boolean') {
+            toast.error('Kết quả tìm kiếm không hợp lệ.');
+            return;
+          }
+
+          const results = data.results.map(sanitizeRemoteProduct);
+          if (results.some(product => product === null)) {
+            toast.error('Kết quả tìm kiếm chứa dữ liệu không hợp lệ.');
+            return;
+          }
+
           if (data.isTyping) {
-            setSuggestions(data.results || []);
+            setSuggestions(results);
           } else {
-            // When user hits Enter, just show suggestions and let them click
-            if (data.results && data.results.length > 0) {
-              setSuggestions(data.results);
+            if (results.length > 0) {
+              setSuggestions(results);
             } else {
-              toast.error("Không tìm thấy sản phẩm này trong kho máy tính.");
+              toast.error('Không tìm thấy sản phẩm này trong kho máy tính.');
               setSearchTerm('');
-              if (searchInputRef.current) searchInputRef.current.value = '';
               setSuggestions([]);
               if (navigator.vibrate) navigator.vibrate(300);
-              setTimeout(() => {
-                if (searchInputRef.current) searchInputRef.current.focus();
-              }, 100);
+              setTimeout(() => searchInputRef.current?.focus(), 100);
             }
           }
+          return;
         }
-        else if (data.type === 'ADD_STOCK_SUCCESS') {
-          toast.success("✅ Đã cập nhật trên máy tính!");
-          setScannedProduct(null);
-          setQtyBase('');
-          setQtyMid('');
-          setQtyWholesale('');
-          setSearchTerm('');
-          if (searchInputRef.current) searchInputRef.current.value = '';
-          setSuggestions([]);
-          setActiveTab('scan');
-          setTimeout(() => {
-            if (searchInputRef.current) searchInputRef.current.focus();
-          }, 500);
+
+        if (data.type === 'ADD_STOCK_SUCCESS') {
+          const pendingRequest = pendingStockRequestRef.current;
+          const newStock = Number(data.newStock);
+          const productName = safeText(data.productName, 'sản phẩm', 200);
+          const isValidResponse = isRequestId(data.requestId)
+            && pendingRequest?.requestId === data.requestId
+            && isProductId(data.productId)
+            && pendingRequest.productId === data.productId
+            && Number.isSafeInteger(data.qty)
+            && pendingRequest.qty === data.qty
+            && Number.isFinite(newStock);
+
+          if (!isValidResponse) {
+            toast.error('Phản hồi cập nhật kho không khớp yêu cầu.');
+            return;
+          }
+
+          clearStockRequest();
+          toast.success(`✅ Đã cộng ${data.qty} vào ${productName}. Tồn mới: ${newStock}`);
+          resetProductForm();
+          return;
         }
-        else if (data.type === 'ERROR') {
-          toast.error(data.message);
+
+        if (data.type === 'ERROR') {
+          const message = safeText(data.message, '', 200);
+          if (!message || (data.requestId !== undefined && !isRequestId(data.requestId))) {
+            toast.error('Máy tính gửi thông báo lỗi không hợp lệ.');
+            return;
+          }
+          if (!data.requestId || pendingStockRequestRef.current?.requestId === data.requestId) {
+            clearStockRequest();
+          }
+          toast.error(message);
+          return;
         }
+
+        toast.error('Máy tính gửi loại phản hồi không được hỗ trợ.');
       });
 
       conn.on('close', () => {
-        setIsConnected(false);
+        if (connRef.current !== conn) return;
+        if (connectionTimeoutRef.current) {
+          clearTimeout(connectionTimeoutRef.current);
+          connectionTimeoutRef.current = null;
+        }
         connRef.current = null;
-        toast.error("Đã mất kết nối với máy tính.");
+        setIsConnected(false);
+        setIsConnecting(false);
+        // Keep the request UUID so reconnecting to the same open host session can
+        // safely ask for the same result without incrementing stock a second time.
+        clearStockRequest(false);
+        toast.error('Đã mất kết nối với máy tính. Kiểm tra cửa sổ ghép nối trên máy tính.');
       });
 
-      peer.on('error', (err) => {
-        setIsConnecting(false);
-        toast.error("Không thể kết nối. Kiểm tra lại mã PIN.");
-        console.error(err);
+      conn.on('error', (error) => {
+        console.error('Lỗi kết nối máy tính:', error);
+        if (connRef.current === conn) toast.error('Kết nối với máy tính gặp lỗi.');
       });
     });
-  };
+
+    peer.on('error', (error) => {
+      console.error('Lỗi PeerJS trên điện thoại:', error);
+      if (peerRef.current !== peer) return;
+      if (connectionTimeoutRef.current) {
+        clearTimeout(connectionTimeoutRef.current);
+        connectionTimeoutRef.current = null;
+      }
+      setIsConnecting(false);
+      if (!connRef.current?.open) setIsConnected(false);
+      toast.error(error.type === 'peer-unavailable'
+        ? 'Không tìm thấy phiên. Kiểm tra mã PIN và giữ cửa sổ ghép nối mở trên máy tính.'
+        : 'Không thể kết nối. Vui lòng thử lại.');
+    });
+  }, [clearStockRequest, resetProductForm]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const pinParam = params.get('pin');
+    if (!PIN_PATTERN.test(pinParam || '')) return undefined;
+
+    setPin(pinParam);
+    const timer = setTimeout(() => connectToHostWithPin(pinParam), 300);
+    return () => clearTimeout(timer);
+  }, [connectToHostWithPin, location.search]);
+
+  useEffect(() => () => {
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    if (connectionTimeoutRef.current) clearTimeout(connectionTimeoutRef.current);
+    if (stockRequestTimeoutRef.current) clearTimeout(stockRequestTimeoutRef.current);
+    const connection = connRef.current;
+    const peer = peerRef.current;
+    connRef.current = null;
+    peerRef.current = null;
+    connection?.close();
+    peer?.destroy();
+  }, []);
 
   const handleSearchTermChange = (e) => {
-    const val = e.target.value;
+    const val = e.target.value.slice(0, MAX_QUERY_LENGTH);
     setSearchTerm(val);
 
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
@@ -134,10 +326,11 @@ export default function RemoteScanner() {
 
   const handleManualSearchSubmit = (e) => {
     e.preventDefault();
-    if (!searchTerm.trim()) return;
+    const query = searchTerm.trim();
+    if (!query || query.length > MAX_QUERY_LENGTH) return;
     if (connRef.current && connRef.current.open) {
-      toast.loading("Đang tra cứu...", { duration: 500 });
-      connRef.current.send({ type: 'SEARCH_PRODUCT', query: searchTerm, isTyping: false });
+      toast.loading('Đang tra cứu...', { duration: 500 });
+      connRef.current.send({ type: 'SEARCH_PRODUCT', query, isTyping: false });
     }
   };
 
@@ -150,46 +343,60 @@ export default function RemoteScanner() {
 
   const calculateTotalAdded = () => {
     if (!scannedProduct) return 0;
-    let total = 0;
-    const base = parseInt(qtyBase) || 0;
-    total += base;
+    const base = parseQuantity(qtyBase);
+    const mid = parseQuantity(qtyMid);
+    const wholesale = parseQuantity(qtyWholesale);
+    if (![base, mid, wholesale].every(Number.isSafeInteger)) return Number.NaN;
 
-    if (scannedProduct.midUnit && scannedProduct.midConversionRate) {
-      const mid = parseInt(qtyMid) || 0;
-      total += mid * parseInt(scannedProduct.midConversionRate);
-    }
-
+    let total = base;
+    if (scannedProduct.midUnit && scannedProduct.midConversionRate) total += mid * scannedProduct.midConversionRate;
     if (scannedProduct.wholesaleUnit && scannedProduct.wholesaleConversionRate) {
-      const whole = parseInt(qtyWholesale) || 0;
-      total += whole * parseInt(scannedProduct.wholesaleConversionRate);
+      total += wholesale * scannedProduct.wholesaleConversionRate;
     }
-    return total;
+
+    return Number.isSafeInteger(total) && total <= MAX_STOCK_ADDITION ? total : Number.NaN;
   };
 
   const totalAdded = calculateTotalAdded();
+  const hasValidTotal = Number.isSafeInteger(totalAdded) && totalAdded > 0 && totalAdded <= MAX_STOCK_ADDITION;
 
   const handleAddStock = () => {
-    if (totalAdded <= 0) {
-      toast.error("Vui lòng nhập số lượng hợp lệ");
+    if (!scannedProduct || !isProductId(scannedProduct.id) || !hasValidTotal) {
+      toast.error(`Tổng số lượng phải từ 1 đến ${MAX_STOCK_ADDITION.toLocaleString('vi-VN')}`);
       return;
     }
-    if (connRef.current && connRef.current.open) {
-      connRef.current.send({ type: 'ADD_STOCK', productId: scannedProduct.id, qty: totalAdded });
+
+    const conn = connRef.current;
+    if (!conn?.open) {
+      toast.error('Đã mất kết nối với máy tính.');
+      return;
+    }
+
+    try {
+      const previousRequest = pendingStockRequestRef.current;
+      const requestId = previousRequest?.productId === scannedProduct.id && previousRequest.qty === totalAdded
+        ? previousRequest.requestId
+        : createRequestId();
+      const request = { requestId, productId: scannedProduct.id, qty: totalAdded };
+      pendingStockRequestRef.current = request;
+      setIsUpdatingStock(true);
+      conn.send({ type: 'ADD_STOCK', ...request });
+
+      if (stockRequestTimeoutRef.current) clearTimeout(stockRequestTimeoutRef.current);
+      stockRequestTimeoutRef.current = setTimeout(() => {
+        setIsUpdatingStock(false);
+        toast.error('Chưa nhận được phản hồi. Bấm lại để kiểm tra cùng yêu cầu, không tạo lần cộng mới.');
+      }, 10_000);
+    } catch (error) {
+      clearStockRequest();
+      toast.error(error.message);
     }
   };
 
   const handleCancel = () => {
-    setScannedProduct(null);
-    setQtyBase('');
-    setQtyMid('');
-    setQtyWholesale('');
-    setSearchTerm('');
-    if (searchInputRef.current) searchInputRef.current.value = '';
-    setSuggestions([]);
-    setActiveTab('scan');
-    setTimeout(() => {
-      if (searchInputRef.current) searchInputRef.current.focus();
-    }, 500);
+    if (isUpdatingStock) return;
+    clearStockRequest();
+    resetProductForm();
   };
 
   if (!isConnected) {
@@ -203,21 +410,24 @@ export default function RemoteScanner() {
           </div>
           <h1 className="text-2xl font-black mb-2 text-slate-800 -mt-6">Đồng Bộ Di Động</h1>
           <p className="text-slate-500 text-center text-sm mb-8 px-4">
-            Nhập mã PIN hiển thị trên màn hình máy tính để bắt đầu làm máy quét.
+            Nhập mã PIN 6 số đang hiển thị trên máy tính để bắt đầu làm máy quét.
           </p>
 
           <input
             type="text"
-            maxLength={4}
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            maxLength={PIN_LENGTH}
             value={pin}
-            onChange={e => setPin(e.target.value.replace(/\D/g, ''))}
-            className="w-full text-center text-5xl font-black tracking-[0.3em] py-5 rounded-2xl bg-slate-50 border-2 border-slate-200 focus:border-indigo-500 focus:bg-white focus:outline-none mb-6 transition-all text-indigo-600"
-            placeholder="----"
+            onChange={e => setPin(e.target.value.replace(/\D/g, '').slice(0, PIN_LENGTH))}
+            className="w-full text-center text-4xl font-black tracking-[0.2em] py-5 rounded-2xl bg-slate-50 border-2 border-slate-200 focus:border-indigo-500 focus:bg-white focus:outline-none mb-6 transition-all text-indigo-600"
+            placeholder="------"
+            aria-label="Mã PIN kết nối 6 số"
           />
 
           <button
             onClick={() => connectToHostWithPin(pin)}
-            disabled={pin.length < 4 || isConnecting}
+            disabled={!PIN_PATTERN.test(pin) || isConnecting}
             className="w-full py-4 rounded-2xl font-bold text-lg bg-gradient-to-r from-sky-500 to-indigo-600 text-white hover:from-sky-400 hover:to-indigo-500 disabled:opacity-50 disabled:from-slate-400 disabled:to-slate-500 transition-all shadow-lg shadow-indigo-500/30 flex items-center justify-center gap-2"
           >
             {isConnecting ? 'Đang kết nối...' : 'Bắt Đầu Ghép Nối'}
@@ -253,8 +463,9 @@ export default function RemoteScanner() {
               <input
                 ref={searchInputRef}
                 type="text"
-                defaultValue={searchTerm}
+                value={searchTerm}
                 onChange={handleSearchTermChange}
+                maxLength={MAX_QUERY_LENGTH}
                 placeholder="Mã vạch hoặc tên..."
                 className="w-full bg-white border-2 border-slate-200 rounded-2xl pl-12 pr-16 py-4 text-lg font-bold text-slate-800 focus:outline-none focus:border-indigo-500 transition-colors"
                 autoFocus
@@ -308,7 +519,8 @@ export default function RemoteScanner() {
 
           <button
             onClick={handleCancel}
-            className="flex items-center gap-2 text-indigo-600 font-bold p-5"
+            disabled={isUpdatingStock}
+            className="flex items-center gap-2 text-indigo-600 font-bold p-5 disabled:opacity-40"
           >
             <ChevronLeft size={20} /> Quay lại tìm kiếm
           </button>
@@ -333,10 +545,14 @@ export default function RemoteScanner() {
                     <input
                       type="number"
                       inputMode="numeric"
+                      min="0"
+                      max={MAX_STOCK_ADDITION}
+                      step="1"
                       value={qtyWholesale}
-                      onChange={e => setQtyWholesale(e.target.value)}
+                      onChange={e => setQtyWholesale(sanitizeQuantityInput(e.target.value))}
+                      disabled={isUpdatingStock}
                       placeholder="0"
-                      className="w-full text-center text-4xl font-black py-4 rounded-xl bg-white border-2 border-slate-200 focus:border-indigo-500 focus:outline-none transition-all text-slate-800"
+                      className="w-full text-center text-4xl font-black py-4 rounded-xl bg-white border-2 border-slate-200 focus:border-indigo-500 focus:outline-none transition-all text-slate-800 disabled:opacity-50"
                     />
                     <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">x {scannedProduct.wholesaleConversionRate}</span>
                   </div>
@@ -350,10 +566,14 @@ export default function RemoteScanner() {
                     <input
                       type="number"
                       inputMode="numeric"
+                      min="0"
+                      max={MAX_STOCK_ADDITION}
+                      step="1"
                       value={qtyMid}
-                      onChange={e => setQtyMid(e.target.value)}
+                      onChange={e => setQtyMid(sanitizeQuantityInput(e.target.value))}
+                      disabled={isUpdatingStock}
                       placeholder="0"
-                      className="w-full text-center text-4xl font-black py-4 rounded-xl bg-white border-2 border-slate-200 focus:border-indigo-500 focus:outline-none transition-all text-slate-800"
+                      className="w-full text-center text-4xl font-black py-4 rounded-xl bg-white border-2 border-slate-200 focus:border-indigo-500 focus:outline-none transition-all text-slate-800 disabled:opacity-50"
                     />
                     <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">x {scannedProduct.midConversionRate}</span>
                   </div>
@@ -366,11 +586,15 @@ export default function RemoteScanner() {
                   <input
                     type="number"
                     inputMode="numeric"
+                    min="0"
+                    max={MAX_STOCK_ADDITION}
+                    step="1"
                     autoFocus
                     value={qtyBase}
-                    onChange={e => setQtyBase(e.target.value)}
+                    onChange={e => setQtyBase(sanitizeQuantityInput(e.target.value))}
+                    disabled={isUpdatingStock}
                     placeholder="0"
-                    className="w-full text-center text-4xl font-black py-4 rounded-xl bg-white border-2 border-indigo-200 focus:border-indigo-500 focus:outline-none transition-all text-slate-800"
+                    className="w-full text-center text-4xl font-black py-4 rounded-xl bg-white border-2 border-indigo-200 focus:border-indigo-500 focus:outline-none transition-all text-slate-800 disabled:opacity-50"
                   />
                   <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">{scannedProduct.unit}</span>
                 </div>
@@ -382,7 +606,7 @@ export default function RemoteScanner() {
                   Sẽ cộng thêm:
                 </div>
                 <div className="text-2xl font-black text-indigo-600">
-                  +{totalAdded} <span className="text-base font-bold">{scannedProduct.unit}</span>
+                  {hasValidTotal ? `+${totalAdded}` : 'Không hợp lệ'} <span className="text-base font-bold">{hasValidTotal ? scannedProduct.unit : ''}</span>
                 </div>
               </div>
 
@@ -391,11 +615,11 @@ export default function RemoteScanner() {
             <div className="mt-auto pb-6">
               <button
                 onClick={handleAddStock}
-                disabled={totalAdded <= 0}
+                disabled={!hasValidTotal || isUpdatingStock}
                 className="w-full flex items-center justify-center gap-3 py-5 rounded-[1.5rem] font-bold text-xl bg-gradient-to-r from-sky-500 to-indigo-600 text-white hover:from-sky-400 hover:to-indigo-500 disabled:opacity-50 disabled:from-slate-300 disabled:to-slate-400 transition-all shadow-xl shadow-indigo-500/30 active:scale-[0.98]"
               >
                 <PackagePlus size={24} />
-                Cộng Vào Kho
+                {isUpdatingStock ? 'Đang cập nhật...' : 'Cộng Vào Kho'}
               </button>
             </div>
           </div>

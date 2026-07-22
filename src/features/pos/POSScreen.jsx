@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import ScannerColumn from './components/ScannerColumn';
 import CartColumn from './components/CartColumn';
 import AddProductModal from '../inventory/components/AddProductModal';
@@ -15,6 +15,8 @@ import { useAuth } from '../../contexts/AuthContext';
 
 export default function POSScreen({ isActive = true }) {
   const { currentUser, currentShift } = useAuth();
+  const checkoutLockRef = useRef(false);
+  const [isCheckoutProcessing, setIsCheckoutProcessing] = useState(false);
   const [cartTabs, setCartTabs] = useState(() => {
     try {
       const saved = localStorage.getItem(`pos_cart_tabs_retail`);
@@ -91,7 +93,12 @@ export default function POSScreen({ isActive = true }) {
     }));
   };
 
-  const setCustomer = (cust) => updateActiveTab({ customer: cust });
+  const setCustomer = (cust) => updateActiveTab({
+    customer: cust,
+    // Points belong to one customer only. Clear them when the customer is
+    // removed or changed so a walk-in sale cannot inherit a prior discount.
+    pointsUsed: cust?.phone === customer?.phone ? pointsUsed : 0
+  });
   const setDiscount = (disc) => updateActiveTab({ discount: typeof disc === 'function' ? disc(activeTab.discount || 0) : disc });
   const setDiscountType = (type) => updateActiveTab({ discountType: type });
   const setSurcharge = (amount) => updateActiveTab({ surcharge: typeof amount === 'function' ? amount(activeTab.surcharge || 0) : amount });
@@ -173,6 +180,10 @@ export default function POSScreen({ isActive = true }) {
 
     const handleGlobalKeyDown = (e) => {
       const isCmdOrCtrl = e.metaKey || e.ctrlKey;
+
+      // The checkout modal owns its keyboard shortcuts. Do not let the global
+      // cart handler change tabs, quantities or units behind that modal.
+      if (showConfirmModal || isCheckoutProcessing) return;
 
       // F1 : Focus scanner search
       if (e.key === 'F1' || (isCmdOrCtrl && (e.key.toLowerCase() === 'f' || e.key.toLowerCase() === 'p'))) {
@@ -298,7 +309,7 @@ export default function POSScreen({ isActive = true }) {
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showConfirmModal, showSuccessModal, showAddProductModal, showDuplicateModal, cartItems, activeTabId, cartTabs, handleAddTab]);
+  }, [showConfirmModal, showSuccessModal, showAddProductModal, showDuplicateModal, isCheckoutProcessing, cartItems, activeTabId, cartTabs, handleAddTab]);
 
   // Close checkout modal if cart becomes empty
   useEffect(() => {
@@ -515,10 +526,19 @@ export default function POSScreen({ isActive = true }) {
   });
 
   const totalAmount = Math.max(0, baseTotalAmount - promoDiscountAmount);
-  const pointsDiscountAmount = pointsUsed * pointsRedeemRatio;
   const discountAmount = discountType === 'amount' 
     ? Math.min(totalAmount, discount) 
     : (totalAmount * discount) / 100;
+  const payableBeforePoints = Math.max(0, totalAmount - discountAmount);
+  const maxUsefulPoints = Math.ceil(payableBeforePoints / pointsRedeemRatio);
+  const appliedPointsUsed = pointsEnabled && customer
+    ? Math.min(
+        Math.max(0, Math.floor(Number(pointsUsed) || 0)),
+        Math.max(0, Number(customer.points) || 0),
+        maxUsefulPoints
+      )
+    : 0;
+  const pointsDiscountAmount = Math.min(payableBeforePoints, appliedPointsUsed * pointsRedeemRatio);
   
   // Total discount includes both regular discount and points discount
   const totalDiscount = Math.min(totalAmount, discountAmount + pointsDiscountAmount);
@@ -536,31 +556,70 @@ export default function POSScreen({ isActive = true }) {
   const totalTaxAmount = cartItems.reduce((sum, item) => sum + Math.round((getAppliedPrice(item) * (item.qty || 0) * discountFactor) * getEffectiveTaxRate(item) / 100), 0);
   const finalAmount = Math.max(0, totalAmount - totalDiscount) + totalTaxAmount + surcharge;
 
-  const handleConfirmCheckout = (method, receivedAmount, changeAmount, orderDateStr) => {
+  const handleConfirmCheckout = async (method, receivedAmount, changeAmount, orderDateStr) => {
+    if (checkoutLockRef.current) return;
+
+    checkoutLockRef.current = true;
+    setIsCheckoutProcessing(true);
+
     // If credit, override method
     const actualMethod = isCredit ? 'credit' : method;
-    handleCheckoutSuccess(receivedAmount, changeAmount, actualMethod, orderDateStr);
-    setShowConfirmModal(false);
+    try {
+      const success = await handleCheckoutSuccess(receivedAmount, changeAmount, actualMethod, orderDateStr);
+      if (success) setShowConfirmModal(false);
+    } finally {
+      checkoutLockRef.current = false;
+      setIsCheckoutProcessing(false);
+    }
   };
 
   const handleCheckoutSuccess = async (received, change, method, orderDateStr) => {
     try {
+      const checkoutItems = cartItems.map(item => {
+        const quantity = Number(item.qty);
+        const appliedPrice = Number(getAppliedPrice(item));
+        if (!Number.isFinite(quantity) || quantity <= 0) {
+          throw new Error(`Số lượng của "${item.name}" phải lớn hơn 0.`);
+        }
+        if (!Number.isFinite(appliedPrice) || appliedPrice < 0) {
+          throw new Error(`Giá bán của "${item.name}" không hợp lệ.`);
+        }
+        return { item, quantity, appliedPrice };
+      });
+      if (checkoutItems.length === 0) throw new Error('Giỏ hàng đang trống.');
+      if (!Number.isFinite(finalAmount) || finalAmount < 0) {
+        throw new Error('Tổng tiền đơn hàng không hợp lệ. Vui lòng kiểm tra lại số lượng và giá bán.');
+      }
+
       const storeIdSetting = await db.settings.get('storeId');
-      const storeId = storeIdSetting?.value || 'POS-STORE';
+      const storeId = typeof storeIdSetting?.value === 'string' ? storeIdSetting.value.trim() : '';
+      const hideStockSetting = await db.settings.get('hideStock');
+      const isHideStock = hideStockSetting?.value === 'true';
       
       const orderTimestamp = orderDateStr ? new Date(orderDateStr).getTime() : Date.now();
+      if (!Number.isFinite(orderTimestamp)) {
+        throw new Error('Ngày lập hóa đơn không hợp lệ.');
+      }
+
+      const requestedPointsUsed = appliedPointsUsed;
+      const earnedPoints = pointsEnabled && customer ? Math.floor(finalAmount / pointsEarnRatio) : 0;
 
       const newOrder = {
         timestamp: orderTimestamp,
         total: finalAmount,
+        originalTotal: finalAmount,
         baseTotal: baseTotalAmount,
         promoDiscount: promoDiscountAmount,
         discount: discountAmount,
+        totalDiscount,
         discountPercent: discountType === 'percent' ? discount : 0,
         discountType: discountType,
+        pointsUsed: requestedPointsUsed,
+        pointsDiscount: pointsDiscountAmount,
+        pointsEarned: earnedPoints,
         surcharge: surcharge,
         totalTax: totalTaxAmount,
-        items: cartItems.map(item => {
+        items: checkoutItems.map(({ item, quantity, appliedPrice }) => {
           const mode = item.sellMode || (item.isWholesale ? 'wholesale' : 'base');
           let appliedUnit = item.unit;
           if (mode === 'wholesale') appliedUnit = item.wholesaleUnit;
@@ -591,15 +650,16 @@ export default function POSScreen({ isActive = true }) {
 
           return {
             id: item.id,
+            cartId: item.cartId || `${item.id}-${mode}`,
             barcode: item.barcode,
             name: item.name,
-            price: getAppliedPrice(item),
-            qty: item.qty || 1,
+            price: appliedPrice,
+            qty: quantity,
             unit: appliedUnit,
             sellMode: mode,
             isWholesale: mode === 'wholesale', // legacy
             taxRate: getEffectiveTaxRate(item),
-            taxAmount: Math.round((getAppliedPrice(item) * (item.qty || 1) * discountFactor) * getEffectiveTaxRate(item) / 100),
+            taxAmount: Math.round((appliedPrice * quantity * discountFactor) * getEffectiveTaxRate(item) / 100),
             originalPrice: originalPrice,
             discountAmount: customDiscount || quantityDiscount
           };
@@ -610,94 +670,105 @@ export default function POSScreen({ isActive = true }) {
         customerRemainingDebt: isCredit && customer ? ((customer.debt || 0) + finalAmount) : undefined,
         paymentStatus: isCredit ? 'credit' : 'paid',
         paymentMethod: method,
-        cashReceived: isCredit ? 0 : received,
-        changeAmount: isCredit ? 0 : change,
+        cashReceived: isCredit ? 0 : (Number(received) || 0),
+        changeAmount: isCredit ? 0 : (Number(change) || 0),
         transferAmount: method === 'split' ? Math.max(0, finalAmount - received) : (method === 'vietqr' ? finalAmount : 0),
         storeId: storeId,
         userId: currentUser?.id,
-        shiftId: currentShift?.id
+        shiftId: currentShift?.id,
+        stockTracked: !isHideStock,
+        status: 'completed'
       };
 
-      // Generate a unique random 6-digit order ID to protect sales volume privacy
-      let generatedId;
-      let attempts = 0;
-      while (attempts < 10) {
-        const candidate = Math.floor(100000 + Math.random() * 900000);
-        const existing = await db.orders.get(candidate);
-        if (!existing) {
-          generatedId = candidate;
-          break;
-        }
-        attempts++;
-      }
-      if (!generatedId) {
-        generatedId = Date.now();
-      }
+      await db.transaction(
+        'rw',
+        [db.orders, db.products, db.customers, db.customerTransactions, db.shifts],
+        async () => {
+          if (!currentShift?.id) {
+            throw new Error('Chưa có ca làm việc đang mở. Vui lòng mở ca trước khi thanh toán.');
+          }
+          const liveShift = await db.shifts.get(currentShift.id);
+          if (!liveShift || liveShift.status !== 'active') {
+            throw new Error('Ca làm việc đã kết thúc. Vui lòng mở ca mới trước khi thanh toán.');
+          }
+          newOrder.shiftId = liveShift.id;
 
-      newOrder.id = generatedId;
+          // Generate the public order number inside the same write transaction.
+          let generatedId;
+          for (let attempts = 0; attempts < 10; attempts++) {
+            const candidate = Math.floor(100000 + Math.random() * 900000);
+            if (!(await db.orders.get(candidate))) {
+              generatedId = candidate;
+              break;
+            }
+          }
+          newOrder.id = generatedId || Date.now();
 
-      // 1. Add order
-      await db.orders.add(newOrder);
-      const orderId = generatedId;
+          let currentCustomer = null;
+          if (customer) {
+            currentCustomer = await db.customers.get(customer.phone);
+            if (!currentCustomer) {
+              throw new Error('Khách hàng đã bị xóa hoặc thay đổi. Vui lòng chọn lại khách hàng.');
+            }
+            if (requestedPointsUsed > (Number(currentCustomer.points) || 0)) {
+              throw new Error('Số điểm khả dụng đã thay đổi. Vui lòng kiểm tra lại điểm khách hàng.');
+            }
 
-      // 2. Deduct inventory stocks (only if stock tracking is enabled)
-      const hideStockSetting = await db.settings.get('hideStock');
-      const isHideStock = hideStockSetting ? hideStockSetting.value === 'true' : false;
+            newOrder.customerName = currentCustomer.name;
+            if (isCredit) {
+              newOrder.customerPreviousDebt = Number(currentCustomer.debt) || 0;
+              newOrder.customerRemainingDebt = newOrder.customerPreviousDebt + finalAmount;
+            }
+          } else if (isCredit) {
+            throw new Error('Vui lòng chọn khách hàng trước khi ghi nợ.');
+          }
 
-      if (!isHideStock) {
-        for (const item of cartItems) {
-          const prod = await db.products.get(item.id);
-          if (prod) {
-            const actualQty = item.qty || 1;
-            const mode = item.sellMode || (item.isWholesale ? 'wholesale' : 'base');
-            let conversion = 1;
-            if (mode === 'wholesale') conversion = prod.wholesaleConversionRate || 1;
-            if (mode === 'mid') conversion = prod.midConversionRate || 1;
+          await db.orders.add(newOrder);
 
-            const deductQty = actualQty * conversion;
-            await db.products.update(item.id, {
-              stock: Math.max(0, (prod.stock || 0) - deductQty)
-            });
+          if (!isHideStock) {
+            for (const { item, quantity } of checkoutItems) {
+              const prod = await db.products.get(item.id);
+              if (!prod) throw new Error(`Sản phẩm "${item.name}" không còn tồn tại trong kho.`);
+
+              const mode = item.sellMode || (item.isWholesale ? 'wholesale' : 'base');
+              let conversion = 1;
+              if (mode === 'wholesale') conversion = Number(prod.wholesaleConversionRate) || 1;
+              if (mode === 'mid') conversion = Number(prod.midConversionRate) || 1;
+
+              const deductQty = quantity * conversion;
+              const currentStock = Number(prod.stock) || 0;
+              if (deductQty > currentStock) {
+                throw new Error(`Tồn kho "${prod.name}" không đủ: cần ${deductQty}, hiện có ${currentStock}.`);
+              }
+              await db.products.update(item.id, { stock: currentStock - deductQty });
+            }
+          }
+
+          if (currentCustomer) {
+            const newPoints = pointsEnabled
+              ? Math.max(0, (Number(currentCustomer.points) || 0) - requestedPointsUsed) + earnedPoints
+              : (Number(currentCustomer.points) || 0);
+            const updateData = { points: newPoints };
+
+            if (isCredit) {
+              updateData.debt = newOrder.customerRemainingDebt;
+              const itemsSummary = newOrder.items.map(it => `${it.name} x${it.qty}`).join(', ');
+              await db.customerTransactions.add({
+                customerPhone: currentCustomer.phone,
+                timestamp: orderTimestamp,
+                type: 'debt',
+                amount: finalAmount,
+                orderId: newOrder.id,
+                note: `Giao hàng ghi nợ${itemsSummary ? ` (${itemsSummary})` : ''}`,
+                previousDebt: newOrder.customerPreviousDebt,
+                remainingDebt: newOrder.customerRemainingDebt
+              });
+            }
+
+            await db.customers.update(currentCustomer.phone, updateData);
           }
         }
-      }
-
-      // 3. Update customer (debt & points)
-      if (customer) {
-        let newDebt = customer.debt || 0;
-        let newPoints = customer.points || 0;
-        
-        if (pointsEnabled) {
-          // Deduct used points
-          newPoints = Math.max(0, newPoints - pointsUsed);
-          
-          // Add earned points
-          const earnedPoints = Math.floor(finalAmount / pointsEarnRatio);
-          newPoints += earnedPoints;
-        }
-
-        const updateData = { points: newPoints };
-
-        if (isCredit) {
-          newDebt += finalAmount;
-          updateData.debt = newDebt;
-
-          // Build note listing items for the transaction log
-          const itemsSummary = cartItems.map(it => `${it.name} x${it.qty}`).join(', ') || '';
-
-          await db.customerTransactions.add({
-            customerPhone: customer.phone,
-            timestamp: orderTimestamp,
-            type: 'debt',
-            amount: finalAmount,
-            orderId: orderId,
-            note: `Giao hàng ghi nợ${itemsSummary ? ` (${itemsSummary})` : ''}`,
-            remainingDebt: newDebt
-          });
-        }
-        
-        await db.customers.update(customer.phone, updateData);
-      }
+      );
 
       toast.success(isCredit ? "Đã ghi nợ thành công!" : "Thanh toán thành công!");
 
@@ -725,10 +796,13 @@ export default function POSScreen({ isActive = true }) {
       setDiscount(0);
       setSurcharge(0);
       setIsCredit(false);
+      setPointsUsed(0);
       setActiveMobileTab('scanner');
+      return true;
     } catch (error) {
       console.error(error);
-      toast.error("Gặp lỗi khi xử lý thanh toán đơn hàng.");
+      toast.error(error?.message || "Gặp lỗi khi xử lý thanh toán đơn hàng.");
+      return false;
     }
   };
 
@@ -821,7 +895,7 @@ export default function POSScreen({ isActive = true }) {
               onSwitchTab={setActiveTabId}
               showShortcuts={showShortcuts}
               hideStockEnabled={hideStockEnabled}
-              pointsUsed={pointsUsed}
+              pointsUsed={appliedPointsUsed}
               setPointsUsed={setPointsUsed}
               pointsEnabled={pointsEnabled}
               pointsRedeemRatio={pointsRedeemRatio}
@@ -852,7 +926,7 @@ export default function POSScreen({ isActive = true }) {
             setDiscountType={setDiscountType}
             surcharge={surcharge}
             setSurcharge={setSurcharge}
-            pointsUsed={pointsUsed}
+            pointsUsed={appliedPointsUsed}
             setPointsUsed={setPointsUsed}
             pointsEnabled={pointsEnabled}
             pointsRedeemRatio={pointsRedeemRatio}
@@ -872,6 +946,7 @@ export default function POSScreen({ isActive = true }) {
             onRemoveItem={removeCartItem}
             onUpdateCustomPrice={setCartItemCustomDiscount}
             showShortcuts={showShortcuts}
+            isProcessing={isCheckoutProcessing}
           />
         )}
 

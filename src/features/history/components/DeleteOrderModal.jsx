@@ -3,53 +3,72 @@ import { Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { db } from '../../../db';
 import toast from 'react-hot-toast';
+import { getStockQuantity } from '../../../utils/order';
 
 export default function DeleteOrderModal({ isOpen, onClose, onSuccess, orderToDelete }) {
   const confirmDeleteOrder = async () => {
     if (!orderToDelete) return;
     try {
-      // 1. Revert product stock
-      for (const item of orderToDelete.items) {
-        const prod = await db.products.get(item.id);
-        if (prod) {
-          const qty = parseFloat(item.qty) || 0;
-          const mode = item.sellMode || (item.isWholesale ? 'wholesale' : 'base');
-          let conversion = 1;
-          if (mode === 'wholesale') conversion = prod.wholesaleConversionRate || 1;
-          if (mode === 'mid') conversion = prod.midConversionRate || 1;
-          
-          const restoreQty = qty * conversion;
-          await db.products.update(item.id, {
-            stock: (prod.stock || 0) + restoreQty
-          });
+      await db.transaction(
+        'rw',
+        [db.orders, db.products, db.customers, db.customerTransactions],
+        async () => {
+          const currentOrder = await db.orders.get(orderToDelete.id);
+          if (!currentOrder) throw new Error('Hóa đơn không còn tồn tại.');
+          if (currentOrder.fullyReturned === true || currentOrder.status === 'returned') {
+            throw new Error('Hóa đơn đã hoàn toàn bộ được giữ lại để đối soát và không thể hủy lần nữa.');
+          }
+
+          if (currentOrder.stockTracked !== false) {
+            for (const item of currentOrder.items || []) {
+              const product = await db.products.get(item.id);
+              if (!product) continue;
+              await db.products.update(product.id, {
+                stock: (Number(product.stock) || 0) + getStockQuantity(item, product)
+              });
+            }
+          }
+
+          if (currentOrder.customerPhone) {
+            const customer = await db.customers.get(currentOrder.customerPhone);
+            if (customer) {
+              const customerUpdate = {
+                points: Math.max(
+                  0,
+                  (Number(customer.points) || 0)
+                    - (Number(currentOrder.pointsEarned) || 0)
+                    + (Number(currentOrder.pointsUsed) || 0)
+                )
+              };
+
+              if (currentOrder.paymentStatus === 'credit' || currentOrder.paymentMethod === 'credit') {
+                const previousDebt = Number(customer.debt) || 0;
+                const newDebt = Math.max(0, previousDebt - (Number(currentOrder.total) || 0));
+                customerUpdate.debt = newDebt;
+                await db.customerTransactions.add({
+                  customerPhone: currentOrder.customerPhone,
+                  timestamp: Date.now(),
+                  type: 'payment',
+                  amount: Number(currentOrder.total) || 0,
+                  orderId: currentOrder.id,
+                  note: `Hủy đơn hàng #${currentOrder.id} (Hoàn nợ)`,
+                  previousDebt,
+                  remainingDebt: newDebt
+                });
+              }
+
+              await db.customers.update(currentOrder.customerPhone, customerUpdate);
+            }
+          }
+
+          await db.orders.delete(currentOrder.id);
         }
-      }
-
-      // 2. Revert customer debt if it's a credit order
-      if (orderToDelete.customerPhone && (orderToDelete.paymentStatus === 'credit' || orderToDelete.paymentMethod === 'credit')) {
-        const customer = await db.customers.get(orderToDelete.customerPhone);
-        if (customer) {
-          const newDebt = Math.max(0, (customer.debt || 0) - orderToDelete.total);
-          await db.customers.update(orderToDelete.customerPhone, { debt: newDebt });
-
-          await db.customerTransactions.add({
-            customerPhone: orderToDelete.customerPhone,
-            timestamp: Date.now(),
-            type: 'payment', // acts as a reduction in debt
-            amount: orderToDelete.total,
-            note: `Hủy đơn hàng #${orderToDelete.id} (Hoàn nợ)`,
-            remainingDebt: newDebt
-          });
-        }
-      }
-
-      // 3. Delete order
-      await db.orders.delete(orderToDelete.id);
+      );
       toast.success("Đã xóa hóa đơn và hoàn lại tồn kho thành công!");
       onSuccess();
     } catch (error) {
       console.error("Lỗi khi xóa hóa đơn:", error);
-      toast.error("Gặp lỗi khi xóa hóa đơn.");
+      toast.error(error?.message || "Gặp lỗi khi xóa hóa đơn.");
     }
   };
 

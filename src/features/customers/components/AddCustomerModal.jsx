@@ -45,12 +45,25 @@ export default function AddCustomerModal({ isOpen, onClose, onSuccess }) {
         return;
       }
 
-      await db.customers.add({
-        phone: finalPhone,
-        name,
-        debt,
-        points: 0,
-        specialPrices: {}
+      await db.transaction('rw', [db.customers, db.customerTransactions], async () => {
+        await db.customers.add({
+          phone: finalPhone,
+          name,
+          debt,
+          points: 0,
+          specialPrices: {}
+        });
+        if (debt > 0) {
+          await db.customerTransactions.add({
+            customerPhone: finalPhone,
+            timestamp: Date.now(),
+            type: 'debt',
+            amount: debt,
+            note: 'Dư nợ ban đầu',
+            previousDebt: 0,
+            remainingDebt: debt
+          });
+        }
       });
 
       toast.success(`Đã thêm khách hàng ${name} thành công!`);

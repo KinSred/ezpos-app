@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { db } from '../../../db';
 import { formatPrice, normalizeNumber } from '../../../utils/format';
+import { normalizeQuantity } from '../../../utils/order';
 
 export default function PrintableReceipt({ order, isBatchPrint = false }) {
   const [tx, setTx] = useState(null);
@@ -9,7 +10,10 @@ export default function PrintableReceipt({ order, isBatchPrint = false }) {
   useEffect(() => {
     let active = true;
     if (order && order.timestamp && order.paymentStatus === 'credit') {
-      db.customerTransactions.where('timestamp').equals(order.timestamp).first()
+      const transactionQuery = order.id
+        ? db.customerTransactions.filter(transaction => transaction.orderId === order.id).last()
+        : db.customerTransactions.where('timestamp').equals(order.timestamp).first();
+      transactionQuery
         .then(foundTx => {
           if (active) setTx(foundTx);
         })
@@ -22,7 +26,7 @@ export default function PrintableReceipt({ order, isBatchPrint = false }) {
     return () => {
       active = false;
     };
-  }, [order?.id, order?.paymentStatus]);
+  }, [order]);
 
   if (!order) return null;
 
@@ -35,7 +39,7 @@ export default function PrintableReceipt({ order, isBatchPrint = false }) {
 
   const calculateSubtotal = () => {
     return order.items.reduce((sum, item) => {
-      const quantity = normalizeNumber(item.qty || item.quantity);
+      const quantity = normalizeQuantity(item.qty ?? item.quantity);
       const unitPrice = normalizeNumber(item.price || item.unitPrice);
       return sum + (unitPrice * quantity);
     }, 0);
@@ -117,7 +121,7 @@ export default function PrintableReceipt({ order, isBatchPrint = false }) {
           </div>
 
           {order.items.map((item, index) => {
-            const quantity = normalizeNumber(item.qty || item.quantity);
+            const quantity = normalizeQuantity(item.qty ?? item.quantity);
             const unitPrice = normalizeNumber(item.price || item.unitPrice);
             const amountValue = normalizeNumber(item.amount);
             const finalAmount = amountValue > 0 ? amountValue : unitPrice * quantity;
@@ -176,6 +180,13 @@ export default function PrintableReceipt({ order, isBatchPrint = false }) {
             </div>
           )}
 
+          {order.pointsDiscount > 0 && (
+            <div className="flex justify-between">
+              <span>Dùng điểm ({order.pointsUsed || 0} điểm):</span>
+              <span>-{formatPrice(order.pointsDiscount)}</span>
+            </div>
+          )}
+
           {order.totalTax > 0 && (
             <div className="flex justify-between">
               <span>Tổng VAT:</span>
@@ -194,6 +205,12 @@ export default function PrintableReceipt({ order, isBatchPrint = false }) {
             <span>{isCredit ? 'TỔNG ĐƠN HÀNG:' : 'TỔNG THANH TOÁN:'}</span>
             <span>{formatPrice(order.total)}</span>
           </div>
+          {order.returnedAmount > 0 && (
+            <div className="flex justify-between text-rose-600 text-[11.5px] italic">
+              <span>Hoàn trả lũy kế (tham khảo):</span>
+              <span>{formatPrice(order.returnedAmount)}</span>
+            </div>
+          )}
         </div>
 
         {/* Divider */}
@@ -204,7 +221,12 @@ export default function PrintableReceipt({ order, isBatchPrint = false }) {
           {!isCredit && (
             <div className="flex justify-between">
               <span>Hình thức mua:</span>
-              <span className="font-bold">{order.paymentMethod === 'vietqr' ? 'Chuyển khoản QR' : 'Tiền mặt'}</span>
+              <span className="font-bold">{{
+                cash: 'Tiền mặt',
+                vietqr: 'Chuyển khoản QR',
+                transfer: 'Chuyển khoản',
+                split: 'Tiền mặt + Chuyển khoản'
+              }[order.paymentMethod] || 'Khác'}</span>
             </div>
           )}
 

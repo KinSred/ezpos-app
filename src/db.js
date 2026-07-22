@@ -1,7 +1,17 @@
 import Dexie from 'dexie';
-import { hashPin } from './utils/security';
+import { hashPin, legacyHashPin } from './utils/security';
 
 export const db = new Dexie('POSDatabase');
+
+const generateSecureStoreId = () => {
+  if (!globalThis.crypto?.getRandomValues) {
+    throw new Error('Thiết bị không hỗ trợ tạo Store ID an toàn.');
+  }
+  const randomBytes = new Uint8Array(16);
+  globalThis.crypto.getRandomValues(randomBytes);
+  const token = Array.from(randomBytes, byte => byte.toString(16).padStart(2, '0')).join('').toUpperCase();
+  return `POS-${token}`;
+};
 
 // Version 1 schema
 db.version(1).stores({
@@ -161,13 +171,14 @@ db.version(8).stores({
   // Seed default admin user if no users exist
   const usersCount = await tx.table('users').count();
   if (usersCount === 0) {
-    const defaultPinHash = await hashPin('0000');
+    const defaultPinHash = await Dexie.waitFor(hashPin('0000'));
     await tx.table('users').add({
       username: 'admin',
       pinHash: defaultPinHash,
       role: 'admin',
       name: 'Chủ Cửa Hàng',
-      isActive: true
+      isActive: true,
+      mustChangePin: true
     });
   }
 });
@@ -204,12 +215,42 @@ db.version(10).stores({
   printJobs: '++id, printerId, status, timestamp, type'
 });
 
+// Version 11: add shift-aware debt-payment indexes and force stores still
+// using the shared bootstrap PIN to choose a private PIN before login.
+db.version(11).stores({
+  products: '++id, barcode, name, price, stock, unit, lowStockAlert, creditPrice, wholesalePrice, wholesaleCreditPrice, wholesaleUnit, wholesaleConversionRate, taxRate',
+  orders: '++id, timestamp, total, customerPhone, paymentStatus, totalTax, userId, shiftId',
+  settings: 'key, value',
+  customers: 'phone, name, points, debt',
+  promotions: '++id, name, type, isActive',
+  customerTransactions: '++id, customerPhone, timestamp, type, amount, remainingDebt, shiftId, paymentMethod, [shiftId+type]',
+  users: '++id, username, pinHash, role, name, isActive',
+  shifts: '++id, userId, startTime, endTime, startingCash, expectedCash, actualCash, difference, status',
+  attendance: '++id, userId, clockIn, clockOut, date, totalHours',
+  suppliers: '++id, name, phone, debt, note',
+  supplierTransactions: '++id, supplierId, timestamp, type, amount, remainingDebt, note',
+  printers: '++id, name, type, paperSize, vietnameseMode, ip, port',
+  printJobs: '++id, printerId, status, timestamp, type'
+}).upgrade(async (tx) => {
+  const [defaultPinHash, legacyDefaultPinHash] = await Dexie.waitFor(Promise.all([
+    hashPin('0000'),
+    legacyHashPin('0000')
+  ]));
+  await tx.table('users').filter(user => (
+    user.pinHash === defaultPinHash || user.pinHash === legacyDefaultPinHash
+  )).modify(user => {
+    if (user.pinHash === defaultPinHash || user.pinHash === legacyDefaultPinHash) {
+      user.mustChangePin = true;
+    }
+  });
+});
+
 // Helper to seed initial settings if empty
 export const initializeSettings = async () => {
   const bankBinCount = await db.settings.where('key').equals('bankBin').count();
   if (bankBinCount === 0) {
-    // Generate a random 6-character Store ID for anonymous cloud sync
-    const randomId = 'POS-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+    // Store ID is a capability token for the anonymous backup endpoint.
+    const randomId = generateSecureStoreId();
     await db.settings.bulkPut([
       { key: 'bankBin', value: '970436' }, // Vietcombank by default
       { key: 'bankAccount', value: '000000000' },
@@ -240,7 +281,8 @@ export const initializeUsers = async () => {
       pinHash: defaultPinHash,
       role: 'admin',
       name: 'Chủ Cửa Hàng',
-      isActive: true
+      isActive: true,
+      mustChangePin: true
     });
   }
 };

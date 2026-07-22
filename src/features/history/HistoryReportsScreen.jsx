@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
-import { Calendar, DollarSign, ShoppingBag, Printer, ChevronRight, TrendingUp, BarChart3, Percent, Search, X, ChevronLeft, Trash2, UserPlus } from 'lucide-react';
+import { Calendar, ChevronRight, BarChart3, Search, ChevronLeft } from 'lucide-react';
 import ReportsTab from './components/ReportsTab';
 import OrderDetailsDrawer from './components/OrderDetailsDrawer';
 import ConvertToDebtModal from './components/ConvertToDebtModal';
@@ -10,6 +10,7 @@ import PrintableReceipt from "../pos/components/PrintableReceipt";
 import ReturnOrderModal from './components/ReturnOrderModal';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
+import { calculateReturnRefund, getOrderItemKey, getStockQuantity } from '../../utils/order';
 
 export default function HistoryReportsScreen() {
   const [activeTab, setActiveTab] = useState('history'); // 'history' or 'reports'
@@ -25,6 +26,8 @@ export default function HistoryReportsScreen() {
   // Return order states
   const [showReturnModal, setShowReturnModal] = useState(false);
   const [orderToReturn, setOrderToReturn] = useState(null);
+  const returnLockRef = useRef(false);
+  const [isReturnProcessing, setIsReturnProcessing] = useState(false);
 
   // Convert to debt states
   const [showConvertToDebtModal, setShowConvertToDebtModal] = useState(false);
@@ -104,98 +107,190 @@ export default function HistoryReportsScreen() {
     }, 500);
   };
 
-  const handleConfirmReturn = async (returnedItems, refundAmount) => {
-    if (!orderToReturn) return;
+  const handleConfirmReturn = async (returnedItems) => {
+    if (!orderToReturn || returnLockRef.current) return;
+    returnLockRef.current = true;
+    setIsReturnProcessing(true);
     try {
-      // 1. Revert stock for returned items
-      for (const retItem of returnedItems) {
-        if (retItem.returnQty > 0) {
-          const originalItem = orderToReturn.items.find(i => i.cartId === retItem.cartId);
-          if (originalItem) {
-            const prod = await db.products.get(originalItem.id);
-            if (prod) {
-              const mode = originalItem.sellMode || (originalItem.isWholesale ? 'wholesale' : 'base');
-              let conversion = 1;
-              if (mode === 'wholesale') conversion = prod.wholesaleConversionRate || 1;
-              if (mode === 'mid') conversion = prod.midConversionRate || 1;
-              const restoreQty = retItem.returnQty * conversion;
-              await db.products.update(originalItem.id, {
-                stock: (prod.stock || 0) + restoreQty
+      let updatedOrder = null;
+
+      await db.transaction(
+        'rw',
+        [db.orders, db.products, db.customers, db.customerTransactions],
+        async () => {
+          const currentOrder = await db.orders.get(orderToReturn.id);
+          if (!currentOrder) throw new Error('Hóa đơn không còn tồn tại.');
+          if (currentOrder.fullyReturned === true || currentOrder.status === 'returned') {
+            throw new Error('Hóa đơn này đã được hoàn toàn bộ.');
+          }
+
+          const requestedByIndex = new Map();
+          for (const ret of Array.isArray(returnedItems) ? returnedItems : []) {
+            const itemIndex = Number(ret?.itemIndex);
+            if (!Number.isInteger(itemIndex) || itemIndex < 0) continue;
+            const requestedQty = Math.max(0, Number(ret?.returnQty) || 0);
+            const itemKey = typeof ret?.itemKey === 'string' ? ret.itemKey : '';
+            const productId = ret?.productId;
+            const previousRequest = requestedByIndex.get(itemIndex);
+            if (previousRequest
+              && (previousRequest.itemKey !== itemKey || String(previousRequest.productId) !== String(productId))) {
+              throw new Error('Yêu cầu trả hàng chứa dữ liệu sản phẩm không nhất quán.');
+            }
+            requestedByIndex.set(itemIndex, {
+              itemKey,
+              productId,
+              requestedQty: (previousRequest?.requestedQty || 0) + requestedQty
+            });
+          }
+
+          const validReturns = [...requestedByIndex.entries()]
+            .map(([itemIndex, request]) => {
+              const item = currentOrder.items?.[itemIndex];
+              const currentItemKey = item ? getOrderItemKey(item, itemIndex) : '';
+              if (!item
+                || currentItemKey !== request.itemKey
+                || String(item.id) !== String(request.productId)) {
+                throw new Error('Hóa đơn đã thay đổi. Vui lòng đóng và mở lại màn hình trả hàng.');
+              }
+              const currentQty = Math.max(0, Number(item?.qty ?? item?.quantity) || 0);
+              const returnQty = Math.min(currentQty, request.requestedQty);
+              return item && returnQty > 0
+                ? { itemIndex, item, returnQty }
+                : null;
+            })
+            .filter(Boolean);
+
+          if (validReturns.length === 0) throw new Error('Không có sản phẩm hợp lệ để trả.');
+
+          if (currentOrder.stockTracked !== false) {
+            for (const ret of validReturns) {
+              const product = await db.products.get(ret.item.id);
+              if (!product) continue;
+              const restoreQty = getStockQuantity({ ...ret.item, qty: ret.returnQty }, product);
+              await db.products.update(product.id, {
+                stock: (Number(product.stock) || 0) + restoreQty
               });
             }
           }
-        }
-      }
 
-      // 2. Reduce customer debt if credit order
-      if (orderToReturn.customerPhone && (orderToReturn.paymentStatus === 'credit' || orderToReturn.paymentMethod === 'credit')) {
-        const customer = await db.customers.get(orderToReturn.customerPhone);
-        if (customer) {
-          const newDebt = Math.max(0, (customer.debt || 0) - refundAmount);
-          await db.customers.update(orderToReturn.customerPhone, { debt: newDebt });
-          await db.customerTransactions.add({
-            customerPhone: orderToReturn.customerPhone,
-            timestamp: Date.now(),
-            type: 'payment',
-            amount: refundAmount,
-            note: `Trả hàng một phần HĐ #${orderToReturn.id} (Giảm nợ)`,
-            remainingDebt: newDebt
+          const updatedItems = currentOrder.items
+            .map((item, itemIndex) => {
+              const ret = validReturns.find(candidate => candidate.itemIndex === itemIndex);
+              if (!ret) return item;
+              return { ...item, qty: Math.max(0, (Number(item.qty ?? item.quantity) || 0) - ret.returnQty) };
+            })
+            .filter(item => (Number(item.qty ?? item.quantity) || 0) > 0);
+
+          const refundQuantities = Object.fromEntries(
+            validReturns.map(ret => [getOrderItemKey(ret.item, ret.itemIndex), ret.returnQty])
+          );
+          const currentTotal = Math.max(0, Number(currentOrder.total) || 0);
+          // Always recompute from the current database record. Never trust a stale
+          // or client-supplied refund amount when money, debt and points are updated.
+          const calculatedRefund = calculateReturnRefund(currentOrder, refundQuantities).refundAmount;
+          const safeRefund = Math.min(currentTotal, Math.max(0, calculatedRefund));
+          const newTotal = Math.max(0, currentTotal - safeRefund);
+          const remainingFactor = currentTotal > 0 ? newTotal / currentTotal : 0;
+          const returnedAt = Date.now();
+          const isCreditOrder = currentOrder.paymentStatus === 'credit' || currentOrder.paymentMethod === 'credit';
+
+          let pointsRestored = 0;
+          let pointsRevoked = 0;
+          let customerRemainingDebt = currentOrder.customerRemainingDebt;
+          if (currentOrder.customerPhone) {
+            const currentCustomer = await db.customers.get(currentOrder.customerPhone);
+            if (currentCustomer) {
+              const returnedRatio = 1 - remainingFactor;
+              pointsRestored = Math.round((Number(currentOrder.pointsUsed) || 0) * returnedRatio);
+              pointsRevoked = Math.round((Number(currentOrder.pointsEarned) || 0) * returnedRatio);
+              const customerUpdate = {
+                points: Math.max(0, (Number(currentCustomer.points) || 0) - pointsRevoked + pointsRestored)
+              };
+
+              if (isCreditOrder) {
+                const previousDebt = Number(currentCustomer.debt) || 0;
+                customerRemainingDebt = Math.max(0, previousDebt - safeRefund);
+                customerUpdate.debt = customerRemainingDebt;
+                await db.customerTransactions.add({
+                  customerPhone: currentOrder.customerPhone,
+                  timestamp: returnedAt,
+                  type: 'payment',
+                  amount: safeRefund,
+                  orderId: currentOrder.id,
+                  note: `Trả hàng HĐ #${currentOrder.id} (Giảm nợ)`,
+                  previousDebt,
+                  remainingDebt: customerRemainingDebt
+                });
+              }
+
+              await db.customers.update(currentOrder.customerPhone, customerUpdate);
+            }
+          }
+
+          const scaleMoney = field => Math.round((Number(currentOrder[field]) || 0) * remainingFactor);
+          const paymentPatch = {};
+          if (currentOrder.paymentMethod === 'cash') {
+            paymentPatch.cashReceived = newTotal;
+            paymentPatch.changeAmount = 0;
+          } else if (currentOrder.paymentMethod === 'split') {
+            const remainingCash = Math.round((Number(currentOrder.cashReceived) || 0) * remainingFactor);
+            paymentPatch.cashReceived = Math.min(newTotal, remainingCash);
+            paymentPatch.transferAmount = Math.max(0, newTotal - paymentPatch.cashReceived);
+            paymentPatch.changeAmount = 0;
+          } else if (currentOrder.paymentMethod === 'vietqr' || currentOrder.paymentMethod === 'transfer') {
+            paymentPatch.transferAmount = newTotal;
+          }
+
+          await db.orders.update(currentOrder.id, {
+            ...paymentPatch,
+            items: updatedItems,
+            total: newTotal,
+            baseTotal: scaleMoney('baseTotal'),
+            promoDiscount: scaleMoney('promoDiscount'),
+            discount: scaleMoney('discount'),
+            totalDiscount: scaleMoney('totalDiscount'),
+            pointsDiscount: scaleMoney('pointsDiscount'),
+            totalTax: scaleMoney('totalTax'),
+            surcharge: scaleMoney('surcharge'),
+            pointsUsed: Math.max(0, (Number(currentOrder.pointsUsed) || 0) - pointsRestored),
+            pointsEarned: Math.max(0, (Number(currentOrder.pointsEarned) || 0) - pointsRevoked),
+            customerRemainingDebt,
+            returnedAmount: (Number(currentOrder.returnedAmount) || 0) + safeRefund,
+            returnHistory: [
+              ...(Array.isArray(currentOrder.returnHistory) ? currentOrder.returnHistory : []),
+              {
+                timestamp: returnedAt,
+                amount: safeRefund,
+                items: validReturns.map(ret => ({
+                  productId: ret.item.id,
+                  name: ret.item.name,
+                  qty: ret.returnQty,
+                  unit: ret.item.unit
+                }))
+              }
+            ],
+            hasReturns: true,
+            fullyReturned: updatedItems.length === 0,
+            status: updatedItems.length === 0 ? 'returned' : 'partially_returned'
           });
+
+          updatedOrder = await db.orders.get(currentOrder.id);
         }
-      }
+      );
 
-      // 3. Update order in database (modify items, total, cashReceived)
-      const updatedItems = orderToReturn.items.map(item => {
-        const ret = returnedItems.find(r => r.cartId === item.cartId);
-        if (ret && ret.returnQty > 0) {
-          return { ...item, qty: item.qty - ret.returnQty };
-        }
-        return item;
-      }).filter(item => item.qty > 0);
-
-      if (updatedItems.length === 0) {
-        // All items returned -> delete order
-        await db.orders.delete(orderToReturn.id);
-        toast.success("Đã trả toàn bộ hàng. Hóa đơn bị hủy.");
-        setSelectedOrder(null);
-      } else {
-        const newTotal = Math.max(0, orderToReturn.total - refundAmount);
-        
-        let newCashReceived = orderToReturn.cashReceived;
-        let newTransferAmount = orderToReturn.transferAmount;
-        let newChangeAmount = orderToReturn.changeAmount;
-
-        // If split payment, adjust proportionally or just deduct from transfer first, then cash
-        // For simplicity, just deduct from total received
-        if (orderToReturn.paymentMethod === 'split') {
-           // We just store the new total, the cash/transfer split might be inaccurate now. 
-           // In a real system, you'd specify how the refund is given.
-        } else if (orderToReturn.paymentMethod === 'cash') {
-           newCashReceived = Math.max(0, (newCashReceived || orderToReturn.total) - refundAmount);
-        } else {
-           newTransferAmount = Math.max(0, (newTransferAmount || orderToReturn.total) - refundAmount);
-        }
-
-        await db.orders.update(orderToReturn.id, {
-          items: updatedItems,
-          total: newTotal,
-          cashReceived: newCashReceived,
-          transferAmount: newTransferAmount,
-          changeAmount: newChangeAmount,
-          hasReturns: true
-        });
-        
-        // Update selected order in state so UI reflects immediately
-        const updatedOrder = await db.orders.get(orderToReturn.id);
-        setSelectedOrder(updatedOrder);
-        toast.success("Hoàn tất trả hàng một phần!");
-      }
+      setSelectedOrder(updatedOrder);
+      toast.success(updatedOrder?.fullyReturned
+        ? 'Đã trả toàn bộ hàng và lưu dấu vết hóa đơn.'
+        : 'Hoàn tất trả hàng một phần!');
 
       setShowReturnModal(false);
       setOrderToReturn(null);
     } catch (err) {
       console.error(err);
-      toast.error("Lỗi khi trả hàng.");
+      toast.error(err?.message || "Lỗi khi trả hàng.");
+    } finally {
+      returnLockRef.current = false;
+      setIsReturnProcessing(false);
     }
   };
 
@@ -498,10 +593,12 @@ export default function HistoryReportsScreen() {
           <ReturnOrderModal
             order={orderToReturn}
             onClose={() => {
+              if (isReturnProcessing) return;
               setShowReturnModal(false);
               setOrderToReturn(null);
             }}
             onConfirmReturn={handleConfirmReturn}
+            isProcessing={isReturnProcessing}
           />
         )}
       </AnimatePresence>

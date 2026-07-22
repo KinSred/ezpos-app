@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Users, Search, DollarSign, CreditCard, History, X, Calendar, Receipt, UserPlus, Tag, Plus, Trash2, Edit2, ArrowRightLeft } from 'lucide-react';
+import { Users, Search, History, Trash2, Edit2, ArrowRightLeft } from 'lucide-react';
 import PrintDebtModal from './components/PrintDebtModal';
 import SpecialPricesModal from './components/SpecialPricesModal';
 import HistoryModal from './components/HistoryModal';
@@ -18,7 +18,6 @@ export default function CustomersScreen() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [paymentAmount, setPaymentAmount] = useState('');
   
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [customerHistory, setCustomerHistory] = useState([]);
@@ -37,14 +36,8 @@ export default function CustomersScreen() {
   const [activePrintOrder, setActivePrintOrder] = useState(null);
 
   const [showAddModal, setShowAddModal] = useState(false);
-  const [newPhone, setNewPhone] = useState('');
-  const [newName, setNewName] = useState('');
-  const [newDebt, setNewDebt] = useState('');
-
   const [showEditModal, setShowEditModal] = useState(false);
   const [customerToEdit, setCustomerToEdit] = useState(null);
-  const [editName, setEditName] = useState('');
-  const [editDebt, setEditDebt] = useState('');
 
   const [showSpecialPricesModal, setShowSpecialPricesModal] = useState(false);
   const [specialPricesList, setSpecialPricesList] = useState([]);
@@ -79,19 +72,28 @@ export default function CustomersScreen() {
   const handleOpenEdit = (customer, e) => {
     e.stopPropagation();
     setCustomerToEdit(customer);
-    setEditName(customer.name);
-    setEditDebt(customer.debt ? customer.debt.toString() : '0');
     setShowEditModal(true);
   };
 
   const handleDeleteCustomer = async (customer, e) => {
     e.stopPropagation();
+    if ((Number(customer.debt) || 0) !== 0) {
+      toast.error('Không thể xóa khách hàng đang còn công nợ. Hãy tất toán hoặc chuyển nợ trước.');
+      return;
+    }
     if (!window.confirm(`Bạn có chắc muốn xóa khách hàng ${customer.name}? Các giao dịch của khách hàng này cũng sẽ bị xóa.`)) {
       return;
     }
     try {
-      await db.customers.delete(customer.phone);
-      await db.customerTransactions.where('customerPhone').equals(customer.phone).delete();
+      await db.transaction('rw', [db.customers, db.customerTransactions], async () => {
+        const currentCustomer = await db.customers.get(customer.phone);
+        if (!currentCustomer) throw new Error('Khách hàng không còn tồn tại.');
+        if ((Number(currentCustomer.debt) || 0) !== 0) {
+          throw new Error('Công nợ khách hàng vừa thay đổi. Không thể xóa.');
+        }
+        await db.customers.delete(currentCustomer.phone);
+        await db.customerTransactions.where('customerPhone').equals(currentCustomer.phone).delete();
+      });
       toast.success('Đã xóa khách hàng!');
       loadCustomers();
     } catch (error) {
@@ -217,8 +219,6 @@ export default function CustomersScreen() {
 
   const handleOpenPayment = (customer) => {
     setSelectedCustomer(customer);
-    setPaymentAmount(customer.debt?.toString() || '0');
-    setShowPaymentModal(false);
     setShowPaymentModal(true);
   };
 
@@ -279,8 +279,11 @@ export default function CustomersScreen() {
       let printedCount = 0;
       
       for (const tx of targetTxs) {
-        // Use indexed timestamp to find the exact order
-        const order = await db.orders.where('timestamp').equals(tx.timestamp).first();
+        let order = tx.orderId ? await db.orders.get(tx.orderId) : null;
+        // Legacy debt transactions did not persist orderId.
+        if (!order && tx.timestamp) {
+          order = await db.orders.where('timestamp').equals(tx.timestamp).first();
+        }
         if (order) {
           toast.loading(`Đang in đơn nợ ngày ${new Date(order.timestamp).toLocaleDateString('vi-VN')}...`, { id: loadingToast });
           

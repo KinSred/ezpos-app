@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ArrowRightLeft, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { db } from '../../../db';
@@ -9,6 +9,8 @@ export default function TransferDebtModal({ isOpen, onClose, onSuccess, fromCust
   const [targetCustomerPhone, setTargetCustomerPhone] = useState('');
   const [allCustomers, setAllCustomers] = useState([]);
   const [note, setNote] = useState('');
+  const submitLockRef = useRef(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (isOpen && fromCustomer) {
@@ -41,7 +43,7 @@ export default function TransferDebtModal({ isOpen, onClose, onSuccess, fromCust
 
   const handleProcessTransfer = async (e) => {
     e.preventDefault();
-    if (!fromCustomer) return;
+    if (!fromCustomer || submitLockRef.current) return;
 
     if (!targetCustomerPhone) {
       toast.error('Vui lòng chọn khách hàng nhận nợ');
@@ -54,35 +56,46 @@ export default function TransferDebtModal({ isOpen, onClose, onSuccess, fromCust
       return;
     }
 
-    if (amount > (fromCustomer.debt || 0)) {
-      toast.error('Số tiền chuyển không thể lớn hơn dư nợ hiện tại');
-      return;
-    }
-
+    submitLockRef.current = true;
+    setIsSubmitting(true);
     try {
       await db.transaction('rw', db.customers, db.customerTransactions, async () => {
-        const newFromDebt = (fromCustomer.debt || 0) - amount;
-        await db.customers.update(fromCustomer.phone, { debt: newFromDebt });
+        const sourceCustomer = await db.customers.get(fromCustomer.phone);
+        const targetCustomer = await db.customers.get(targetCustomerPhone);
+        if (!sourceCustomer || !targetCustomer) {
+          throw new Error('Khách hàng nguồn hoặc khách hàng nhận không còn tồn tại.');
+        }
+
+        const sourceDebt = Math.max(0, Number(sourceCustomer.debt) || 0);
+        if (amount > sourceDebt) {
+          throw new Error('Số tiền chuyển không thể lớn hơn dư nợ hiện tại');
+        }
+
+        const timestamp = Date.now();
+        const newFromDebt = sourceDebt - amount;
+        await db.customers.update(sourceCustomer.phone, { debt: newFromDebt });
         
         await db.customerTransactions.add({
-          customerPhone: fromCustomer.phone,
-          timestamp: Date.now(),
+          customerPhone: sourceCustomer.phone,
+          timestamp,
           type: 'payment',
-          amount: amount,
-          note: note,
+          amount,
+          note: note || `Chuyển nợ sang khách hàng ${targetCustomer.name}`,
+          previousDebt: sourceDebt,
           remainingDebt: newFromDebt
         });
 
-        const targetCustomer = await db.customers.get(targetCustomerPhone);
-        const newToDebt = (targetCustomer.debt || 0) + amount;
+        const targetDebt = Math.max(0, Number(targetCustomer.debt) || 0);
+        const newToDebt = targetDebt + amount;
         await db.customers.update(targetCustomer.phone, { debt: newToDebt });
         
         await db.customerTransactions.add({
           customerPhone: targetCustomer.phone,
-          timestamp: Date.now() + 1,
+          timestamp: timestamp + 1,
           type: 'debt',
-          amount: amount,
-          note: `Nhận nợ từ khách hàng ${fromCustomer.name}`,
+          amount,
+          note: `Nhận nợ từ khách hàng ${sourceCustomer.name}`,
+          previousDebt: targetDebt,
           remainingDebt: newToDebt
         });
       });
@@ -91,7 +104,10 @@ export default function TransferDebtModal({ isOpen, onClose, onSuccess, fromCust
       onSuccess();
     } catch (err) {
       console.error(err);
-      toast.error('Lỗi khi chuyển nợ');
+      toast.error(err?.message || 'Lỗi khi chuyển nợ');
+    } finally {
+      submitLockRef.current = false;
+      setIsSubmitting(false);
     }
   };
 
@@ -186,10 +202,11 @@ export default function TransferDebtModal({ isOpen, onClose, onSuccess, fromCust
               </button>
               <button
                 type="submit"
-                className="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all active:scale-[0.96] shadow-lg shadow-indigo-600/20 focus:outline-none focus:ring-2 focus:ring-indigo-600/50 flex justify-center items-center gap-2"
+                disabled={isSubmitting}
+                className="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all active:scale-[0.96] shadow-lg shadow-indigo-600/20 focus:outline-none focus:ring-2 focus:ring-indigo-600/50 flex justify-center items-center gap-2 disabled:opacity-60 disabled:cursor-wait"
               >
                 <ArrowRightLeft size={18} />
-                Chuyển Nợ
+                {isSubmitting ? 'Đang xử lý...' : 'Chuyển Nợ'}
               </button>
             </div>
           </form>

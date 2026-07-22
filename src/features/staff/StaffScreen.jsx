@@ -2,9 +2,18 @@ import React, { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, UserPlus, Edit, Trash2, Shield, CheckCircle2, XCircle, Lock, KeyRound, X } from 'lucide-react';
+import { Users, UserPlus, Edit, Trash2, CheckCircle2, XCircle, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { hashPin } from '../../utils/security';
+
+const isActiveAdmin = (user) => user?.role === 'admin' && user?.isActive === true;
+
+const hasAnotherActiveAdmin = async (userId) => {
+  const activeAdmins = await db.users
+    .filter(user => user.id !== userId && isActiveAdmin(user))
+    .count();
+  return activeAdmins > 0;
+};
 
 export default function StaffScreen() {
   const users = useLiveQuery(() => db.users.toArray(), []);
@@ -28,7 +37,7 @@ export default function StaffScreen() {
         name: user.name,
         role: user.role,
         pin: '', // Don't show existing PIN
-        isActive: user.isActive
+        isActive: user.isActive === true
       });
     } else {
       setEditingUser(null);
@@ -48,9 +57,25 @@ export default function StaffScreen() {
     
     try {
       if (editingUser) {
+        const persistedUser = await db.users.get(editingUser.id);
+        if (!persistedUser) {
+          toast.error("Nhân viên không còn tồn tại");
+          setIsModalOpen(false);
+          return;
+        }
+
+        const removesLastActiveAdmin = isActiveAdmin(persistedUser)
+          && (formData.role !== 'admin' || !formData.isActive)
+          && !(await hasAnotherActiveAdmin(persistedUser.id));
+
+        if (removesLastActiveAdmin) {
+          toast.error("Phải giữ lại ít nhất một tài khoản Admin đang hoạt động");
+          return;
+        }
+
         // Update existing user
         const updateData = {
-          username: formData.username,
+          username: formData.username.trim(),
           name: formData.name,
           role: formData.role,
           isActive: formData.isActive
@@ -62,7 +87,12 @@ export default function StaffScreen() {
             toast.error("Mã PIN phải gồm 4 chữ số");
             return;
           }
+          if (formData.pin === '0000') {
+            toast.error("Không thể sử dụng mã PIN mặc định 0000");
+            return;
+          }
           updateData.pinHash = await hashPin(formData.pin);
+          updateData.mustChangePin = false;
         }
         
         await db.users.update(editingUser.id, updateData);
@@ -73,8 +103,19 @@ export default function StaffScreen() {
           toast.error("Vui lòng nhập mã PIN 4 chữ số");
           return;
         }
+        if (formData.pin === '0000') {
+          toast.error("Không thể sử dụng mã PIN mặc định 0000");
+          return;
+        }
         
-        const existingUser = await db.users.where('username').equals(formData.username).first();
+        const normalizedUsername = formData.username.trim().toLowerCase();
+        if (!normalizedUsername) {
+          toast.error("Tên đăng nhập không được để trống");
+          return;
+        }
+        const existingUser = await db.users
+          .filter(user => user.username?.trim().toLowerCase() === normalizedUsername)
+          .first();
         if (existingUser) {
           toast.error("Tên đăng nhập đã tồn tại");
           return;
@@ -83,11 +124,12 @@ export default function StaffScreen() {
         const pinHash = await hashPin(formData.pin);
         
         await db.users.add({
-          username: formData.username,
+          username: formData.username.trim(),
           name: formData.name,
           role: formData.role,
           pinHash,
-          isActive: formData.isActive
+          isActive: formData.isActive,
+          mustChangePin: false
         });
         
         toast.success("Thêm nhân viên thành công");
@@ -100,14 +142,25 @@ export default function StaffScreen() {
   };
 
   const handleDelete = async (user) => {
-    if (user.role === 'admin' && users.filter(u => u.role === 'admin').length <= 1) {
-      toast.error("Không thể xóa Admin duy nhất của hệ thống");
-      return;
-    }
-    
-    if (confirm(`Bạn có chắc muốn xóa nhân viên ${user.name}?`)) {
-      await db.users.delete(user.id);
-      toast.success("Đã xóa nhân viên");
+    try {
+      const persistedUser = await db.users.get(user.id);
+      if (!persistedUser) {
+        toast.error("Nhân viên không còn tồn tại");
+        return;
+      }
+
+      if (isActiveAdmin(persistedUser) && !(await hasAnotherActiveAdmin(persistedUser.id))) {
+        toast.error("Không thể xóa Admin đang hoạt động cuối cùng của hệ thống");
+        return;
+      }
+
+      if (confirm(`Bạn có chắc muốn xóa nhân viên ${persistedUser.name}?`)) {
+        await db.users.delete(persistedUser.id);
+        toast.success("Đã xóa nhân viên");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Không thể xóa nhân viên");
     }
   };
 

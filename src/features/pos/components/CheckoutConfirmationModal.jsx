@@ -34,7 +34,8 @@ export default function CheckoutConfirmationModal({
   onUpdateCustomPrice,
   showShortcuts,
   pointsEnabled,
-  pointsRedeemRatio
+  pointsRedeemRatio,
+  isProcessing = false
 }) {
   const [paymentMethod, setPaymentMethod] = useState(isCredit ? 'credit' : 'cash'); // 'cash' or 'vietqr' or 'credit'
   const [cashReceived, setCashReceived] = useState('');
@@ -102,7 +103,9 @@ export default function CheckoutConfirmationModal({
 
           let addInfoText = 'Thanh toan don hang';
           if (sepayKey) {
-            const uniqueCode = `DH${Date.now().toString().slice(-6)}`;
+            const randomValue = new Uint32Array(1);
+            crypto.getRandomValues(randomValue);
+            const uniqueCode = `DH${randomValue[0].toString(36).toUpperCase().padStart(7, '0')}`;
             setOrderCode(uniqueCode);
             addInfoText = uniqueCode;
           }
@@ -244,7 +247,7 @@ export default function CheckoutConfirmationModal({
       window.removeEventListener('keydown', handleKeyDown);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onClose, paymentMethod, cashReceived, finalAmount, customer, isCredit]);
+  }, [onClose, paymentMethod, cashReceived, finalAmount, customer, isCredit, isProcessing]);
 
   // Cash format with commas
   const formatNumberWithCommas = (value) => {
@@ -267,6 +270,7 @@ export default function CheckoutConfirmationModal({
 
   const handleSubmit = (e) => {
     if (e) e.preventDefault();
+    if (isProcessing) return;
 
     if (isCredit) {
       if (!customer) {
@@ -1043,6 +1047,7 @@ export default function CheckoutConfirmationModal({
                 whileTap={{ scale: 0.95 }}
                 type="button"
                 onClick={handleSubmit}
+                disabled={isProcessing}
                 className={`flex-1 px-6 py-3 font-bold rounded-xl text-sm flex items-center justify-center gap-2 transition-all shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 ${
                   isCredit 
                     ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-amber-500/30'
@@ -1053,8 +1058,18 @@ export default function CheckoutConfirmationModal({
                         : 'bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white shadow-sky-500/30'
                 }`}
               >
-                <CheckCircle2 size={18} strokeWidth={2.5} />
-                {isCredit ? 'Xác Nhận Ghi Nợ' : (paymentMethod === 'vietqr' || paymentMethod === 'split') ? 'Xác Nhận Đã Nhận Tiền' : 'Hoàn Tất Thanh Toán'}
+                {isProcessing ? (
+                  <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <CheckCircle2 size={18} strokeWidth={2.5} />
+                )}
+                {isProcessing
+                  ? 'Đang xử lý...'
+                  : isCredit
+                    ? 'Xác Nhận Ghi Nợ'
+                    : (paymentMethod === 'vietqr' || paymentMethod === 'split')
+                      ? 'Xác Nhận Đã Nhận Tiền'
+                      : 'Hoàn Tất Thanh Toán'}
               </motion.button>
             </div>
           </div>

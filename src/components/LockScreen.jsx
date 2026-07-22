@@ -1,18 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingCart, LogIn, Delete, User, ArrowLeft } from 'lucide-react';
+import { LogIn, Delete, User, ArrowLeft, ShieldCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import AppLogo from './AppLogo';
 
 export default function LockScreen() {
-  const { login } = useAuth();
+  const { login, changeRequiredPin } = useAuth();
   const users = useLiveQuery(() => db.users.filter(u => u.isActive).toArray());
   const [selectedUser, setSelectedUser] = useState(null);
   const [pin, setPin] = useState('');
   const [loading, setLoading] = useState(false);
+  const [requiresPinChange, setRequiresPinChange] = useState(false);
+  const [newPin, setNewPin] = useState('');
+  const [confirmPin, setConfirmPin] = useState('');
 
   const handleNumberClick = (num) => {
     if (pin.length < 4) {
@@ -32,12 +35,49 @@ export default function LockScreen() {
     const result = await login(selectedUser.username, pin);
     setLoading(false);
     
-    if (!result.success) {
+    if (result.requiresPinChange) {
+      setRequiresPinChange(true);
+      toast('Hãy đổi mã PIN mặc định trước khi tiếp tục.');
+    } else if (!result.success) {
       toast.error(result.error);
       setPin(''); // Reset on failure
     } else {
       toast.success(`Xin chào, ${result.user.name}`);
     }
+  };
+
+  const resetSelection = () => {
+    setSelectedUser(null);
+    setPin('');
+    setNewPin('');
+    setConfirmPin('');
+    setRequiresPinChange(false);
+  };
+
+  const handleRequiredPinChange = async (e) => {
+    e.preventDefault();
+    if (!/^\d{4}$/.test(newPin)) {
+      toast.error('Mã PIN mới phải gồm đúng 4 chữ số');
+      return;
+    }
+    if (newPin !== confirmPin) {
+      toast.error('Hai mã PIN mới chưa khớp');
+      return;
+    }
+
+    setLoading(true);
+    const result = await changeRequiredPin(selectedUser.username, pin, newPin);
+    setLoading(false);
+    if (!result.success) {
+      toast.error(result.error);
+      return;
+    }
+
+    setRequiresPinChange(false);
+    setPin('');
+    setNewPin('');
+    setConfirmPin('');
+    toast.success(`Đã đổi PIN. Xin chào, ${result.user.name}`);
   };
 
   return (
@@ -103,7 +143,7 @@ export default function LockScreen() {
             >
               <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100 dark:border-slate-700">
                 <button 
-                  onClick={() => { setSelectedUser(null); setPin(''); }}
+                  onClick={resetSelection}
                   className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors text-slate-500 dark:text-slate-400"
                 >
                   <ArrowLeft size={20} />
@@ -165,7 +205,53 @@ export default function LockScreen() {
           )}
         </AnimatePresence>
       </motion.div>
+
+      {requiresPinChange && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4">
+          <form onSubmit={handleRequiredPinChange} className="w-full max-w-sm rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-2xl p-6 space-y-5">
+            <div className="text-center">
+              <ShieldCheck className="mx-auto text-amber-500 mb-3" size={38} />
+              <h2 className="text-xl font-extrabold text-slate-900 dark:text-white">Đổi PIN mặc định</h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">
+                Tài khoản quản trị phải chọn mã PIN riêng trước lần sử dụng đầu tiên.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <input
+                type="password"
+                inputMode="numeric"
+                autoComplete="new-password"
+                maxLength={4}
+                value={newPin}
+                onChange={e => setNewPin(e.target.value.replace(/\D/g, ''))}
+                placeholder="PIN mới (4 số)"
+                className="w-full px-4 py-3 glass-input rounded-xl text-center tracking-[0.5em] font-mono text-lg"
+                autoFocus
+              />
+              <input
+                type="password"
+                inputMode="numeric"
+                autoComplete="new-password"
+                maxLength={4}
+                value={confirmPin}
+                onChange={e => setConfirmPin(e.target.value.replace(/\D/g, ''))}
+                placeholder="Nhập lại PIN mới"
+                className="w-full px-4 py-3 glass-input rounded-xl text-center tracking-[0.5em] font-mono text-lg"
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <button type="button" onClick={resetSelection} disabled={loading} className="flex-1 px-4 py-3 glass-button rounded-xl font-bold">
+                Quay lại
+              </button>
+              <button type="submit" disabled={loading || newPin.length !== 4 || confirmPin.length !== 4} className="flex-1 px-4 py-3 rounded-xl font-bold bg-amber-500 hover:bg-amber-600 text-white disabled:opacity-50">
+                {loading ? 'Đang lưu...' : 'Đổi PIN'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }
-

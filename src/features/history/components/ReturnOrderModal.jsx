@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { X, ArrowLeftRight, CheckCircle2, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { calculateReturnRefund, getOrderItemKey } from '../../../utils/order';
 
-export default function ReturnOrderModal({ order, onClose, onConfirmReturn }) {
+export default function ReturnOrderModal({ order, onClose, onConfirmReturn, isProcessing = false }) {
   // returnQtyMap: { [cartId]: quantityToReturn }
   const [returnQtyMap, setReturnQtyMap] = useState({});
 
   const handleQtyChange = (cartId, value, maxQty) => {
+    if (isProcessing) return;
     let qty = parseFloat(value);
     if (isNaN(qty) || qty < 0) qty = 0;
     if (qty > maxQty) qty = maxQty;
@@ -22,41 +24,35 @@ export default function ReturnOrderModal({ order, onClose, onConfirmReturn }) {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
   };
 
-  const totalRefundAmount = order.items.reduce((sum, item) => {
-    const retQty = returnQtyMap[item.cartId] || 0;
-    return sum + (retQty * item.price);
-  }, 0);
-
-  // Consider proportional discount refund if there was an order-level discount
-  // If order had discount, the effective item price is lower.
-  // For simplicity, we can just subtract a proportional amount of the discount, or let the user adjust.
-  // Let's just do a simple proportional discount deduction.
-  const returnRatio = order.total > 0 && order.items.reduce((sum, item) => sum + item.price * item.qty, 0) > 0 
-    ? totalRefundAmount / order.items.reduce((sum, item) => sum + item.price * item.qty, 0)
-    : 0;
-  
-  const effectiveDiscountRefund = (order.discount || 0) * returnRatio;
-  const finalRefundAmount = Math.max(0, totalRefundAmount - effectiveDiscountRefund);
+  const {
+    returnedGross: totalRefundAmount,
+    refundAmount: finalRefundAmount
+  } = calculateReturnRefund(order, returnQtyMap);
+  const effectiveDiscountRefund = Math.max(0, totalRefundAmount - finalRefundAmount);
 
   const handleSubmit = () => {
+    if (isProcessing) return;
     const returnedItems = [];
     let hasReturns = false;
     
-    for (const item of order.items) {
-      const retQty = returnQtyMap[item.cartId] || 0;
+    order.items.forEach((item, itemIndex) => {
+      const itemKey = getOrderItemKey(item, itemIndex);
+      const retQty = returnQtyMap[itemKey] || 0;
       if (retQty > 0) hasReturns = true;
       returnedItems.push({
-        cartId: item.cartId,
+        itemKey,
+        itemIndex,
+        productId: item.id,
         returnQty: retQty,
       });
-    }
+    });
 
     if (!hasReturns) {
       toast.error("Vui lòng chọn số lượng sản phẩm cần trả!");
       return;
     }
 
-    onConfirmReturn(returnedItems, finalRefundAmount);
+    onConfirmReturn(returnedItems);
   };
 
   return (
@@ -76,6 +72,7 @@ export default function ReturnOrderModal({ order, onClose, onConfirmReturn }) {
           </h3>
           <button
             onClick={onClose}
+            disabled={isProcessing}
             className="text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-300 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 p-2 rounded-2xl transition-colors"
           >
             <X size={24} strokeWidth={2.5} />
@@ -91,29 +88,33 @@ export default function ReturnOrderModal({ order, onClose, onConfirmReturn }) {
           </div>
 
           <div className="space-y-3">
-            {order.items.map((item) => (
-              <div key={item.cartId} className="flex items-center gap-4 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
-                <div className="flex-1 min-w-0">
-                  <h4 className="font-bold text-slate-800 dark:text-slate-100 text-sm truncate">{item.name}</h4>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                    Đã mua: <strong>{item.qty}</strong> {item.unit || 'cái'} × {formatPrice(item.price)}
-                  </p>
+            {order.items.map((item, itemIndex) => {
+              const itemKey = getOrderItemKey(item, itemIndex);
+              return (
+                <div key={itemKey} className="flex items-center gap-4 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-bold text-slate-800 dark:text-slate-100 text-sm truncate">{item.name}</h4>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                      Đã mua: <strong>{item.qty}</strong> {item.unit || 'cái'} × {formatPrice(item.price)}
+                    </p>
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">SL Trả</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max={item.qty}
+                      step="any"
+                      value={returnQtyMap[itemKey] || ''}
+                      onChange={(e) => handleQtyChange(itemKey, e.target.value, item.qty)}
+                      disabled={isProcessing}
+                      className="w-20 px-3 py-2 text-center font-black text-rose-600 dark:text-rose-400 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500 disabled:opacity-60"
+                      placeholder="0"
+                    />
+                  </div>
                 </div>
-                <div className="flex flex-col items-end gap-1">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">SL Trả</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max={item.qty}
-                    step="any"
-                    value={returnQtyMap[item.cartId] || ''}
-                    onChange={(e) => handleQtyChange(item.cartId, e.target.value, item.qty)}
-                    className="w-20 px-3 py-2 text-center font-black text-rose-600 dark:text-rose-400 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500"
-                    placeholder="0"
-                  />
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {totalRefundAmount > 0 && (
@@ -139,16 +140,18 @@ export default function ReturnOrderModal({ order, onClose, onConfirmReturn }) {
         <div className="p-4 border-t border-slate-200/50 dark:border-slate-800/50 flex justify-end gap-3 bg-slate-50/80 dark:bg-slate-900/80">
           <button
             onClick={onClose}
+            disabled={isProcessing}
             className="px-6 py-2.5 rounded-xl font-bold text-slate-600 hover:bg-slate-200 dark:text-slate-300 dark:hover:bg-slate-800 transition-colors"
           >
             Hủy bỏ
           </button>
           <button
             onClick={handleSubmit}
-            className="px-6 py-2.5 rounded-xl font-bold bg-rose-600 hover:bg-rose-700 text-white flex items-center gap-2 shadow-lg shadow-rose-500/30 transition-all"
+            disabled={isProcessing}
+            className="px-6 py-2.5 rounded-xl font-bold bg-rose-600 hover:bg-rose-700 text-white flex items-center gap-2 shadow-lg shadow-rose-500/30 transition-all disabled:opacity-60 disabled:cursor-wait"
           >
             <CheckCircle2 size={18} />
-            Xác nhận trả hàng
+            {isProcessing ? 'Đang xử lý...' : 'Xác nhận trả hàng'}
           </button>
         </div>
       </motion.div>
