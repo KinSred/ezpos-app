@@ -781,17 +781,19 @@ export default function CheckoutConfirmationModal({
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
                     transition={{ duration: 0.15 }}
-                    className="glass-panel border border-amber-500/30 rounded-2xl p-6 text-center"
+                    className="glass-panel border border-amber-500/30 rounded-xl p-3 flex flex-col items-center justify-center text-center mt-2 min-h-[80px]"
                   >
-                    <CreditCard className="mx-auto text-amber-500 mb-4" size={48} />
-                    <h3 className="text-lg font-bold text-amber-700 dark:text-amber-400 mb-2">Đơn Hàng Ghi Nợ</h3>
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="text-amber-500" size={20} />
+                      <h3 className="text-sm font-bold text-amber-700 dark:text-amber-400">Đơn Hàng Ghi Nợ</h3>
+                    </div>
                     {customer ? (
-                      <p className="text-sm text-amber-600 dark:text-amber-400/80">
-                        Khách hàng <strong>{customer.name}</strong> sẽ được ghi nợ số tiền <strong className="text-lg">{formatPrice(finalAmount)}</strong>
+                      <p className="text-xs text-amber-600 dark:text-amber-400/80 mt-2">
+                        Khách: <strong>{customer.name}</strong> • Ghi nợ: <strong>{formatPrice(finalAmount)}</strong>
                       </p>
                     ) : (
-                      <p className="text-sm text-rose-500 font-bold bg-rose-50 dark:bg-rose-500/10 py-2 rounded-lg">
-                        Vui lòng chọn khách hàng ở mục trên để thực hiện ghi nợ.
+                      <p className="text-xs text-rose-500 font-bold bg-rose-50 dark:bg-rose-500/10 px-3 py-1.5 rounded-lg mt-2">
+                        ⚠️ Vui lòng chọn khách hàng ở trên
                       </p>
                     )}
                   </motion.div>
@@ -942,11 +944,13 @@ export default function CheckoutConfirmationModal({
                                     {formatPrice(finalAmount - (cleanCashReceived ? parseFloat(cleanCashReceived) : 0))}
                                   </div>
                                 </div>
+                                {/* HÀNG TẠM ẨN THEO YÊU CẦU 
                                 {qrUrl ? (
                                   <img src={qrUrl} alt="Mã VietQR" className="w-24 h-24 object-contain rounded-xl cursor-pointer" onClick={() => setShowFullQR(true)} />
                                 ) : (
                                   <div className="w-24 h-24 bg-slate-100 rounded-xl animate-pulse"></div>
                                 )}
+                                */}
                               </div>
                             </motion.div>
                           )}
@@ -960,9 +964,10 @@ export default function CheckoutConfirmationModal({
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
                         transition={{ duration: 0.15 }}
-                        className="flex flex-col items-center gap-4 py-2 min-h-[300px]"
+                        className="flex flex-col items-center justify-center gap-4 py-6 min-h-[120px]"
                       >
-                        {/* QR Code Scannable Container */}
+                        {/* QR Code Scannable Container HÀNG TẠM ẨN THEO YÊU CẦU */}
+                        {/* 
                         <motion.div 
                           className="glass-card p-3.5 rounded-3xl shadow-xl border border-white/10 relative cursor-pointer min-h-[252px] min-w-[252px] flex items-center justify-center"
                           whileHover={{ scale: 1.1, zIndex: 50, y: -5 }}
@@ -981,7 +986,6 @@ export default function CheckoutConfirmationModal({
                             <div className="w-56 h-56 bg-slate-100 dark:bg-slate-900 animate-pulse rounded-2xl"></div>
                           )}
                           
-                          {/* Warning if Bank is not configured */}
                           {(!bankInfo?.acc || bankInfo?.acc === '000000000') && (
                             <div className="absolute inset-0 glass-panel flex flex-col items-center justify-center text-center p-6 rounded-3xl">
                               <AlertTriangle className="text-rose-500 mb-2" size={24} />
@@ -990,6 +994,7 @@ export default function CheckoutConfirmationModal({
                             </div>
                           )}
                         </motion.div>
+                        */}
  
                         {/* Beneficiary account info removed as requested */}
                         
