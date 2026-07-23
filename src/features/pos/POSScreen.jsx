@@ -684,14 +684,23 @@ export default function POSScreen({ isActive = true }) {
         'rw',
         [db.orders, db.products, db.customers, db.customerTransactions, db.shifts],
         async () => {
-          if (!currentShift?.id) {
+          const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'manager';
+          
+          if (!isAdmin && !currentShift?.id) {
             throw new Error('Chưa có ca làm việc đang mở. Vui lòng mở ca trước khi thanh toán.');
           }
-          const liveShift = await db.shifts.get(currentShift.id);
-          if (!liveShift || liveShift.status !== 'active') {
-            throw new Error('Ca làm việc đã kết thúc. Vui lòng mở ca mới trước khi thanh toán.');
+          
+          let liveShift = null;
+          if (currentShift?.id) {
+            liveShift = await db.shifts.get(currentShift.id);
+            if (!isAdmin && (!liveShift || liveShift.status !== 'active')) {
+              throw new Error('Ca làm việc đã kết thúc. Vui lòng mở ca mới trước khi thanh toán.');
+            }
           }
-          newOrder.shiftId = liveShift.id;
+          
+          if (liveShift) {
+            newOrder.shiftId = liveShift.id;
+          }
 
           // Generate the public order number inside the same write transaction.
           let generatedId;
