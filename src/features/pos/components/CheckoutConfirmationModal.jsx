@@ -536,15 +536,13 @@ export default function CheckoutConfirmationModal({
           {/* Cột phải (55%): Lựa chọn hình thức & nhập thông tin thanh toán */}
           <div className="lg:col-span-7 p-5 flex flex-col justify-between min-h-0 bg-transparent relative z-10">
             <div>
-              {paymentMethod === 'credit' && (
-                <div className="mb-4">
-                  <CustomerSelector 
-                    customer={customer} 
-                    setCustomer={setCustomer} 
-                    isCredit={isCredit} 
-                  />
-                </div>
-              )}
+              <div className="mb-4">
+                <CustomerSelector 
+                  customer={customer} 
+                  setCustomer={setCustomer} 
+                  isCredit={isCredit} 
+                />
+              </div>
               
               {paymentMethod === 'credit' && (
                 <div className="mb-4 group bg-gradient-to-br from-white/80 to-white/40 dark:from-slate-800/80 dark:to-slate-900/40 backdrop-blur-xl rounded-2xl p-4 border border-white/60 dark:border-slate-700/50 shadow-sm hover:shadow-md transition-all duration-300 relative">
