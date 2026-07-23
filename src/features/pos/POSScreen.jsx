@@ -211,6 +211,13 @@ export default function POSScreen({ isActive = true }) {
         handleAddTab();
         return;
       }
+
+      // Cmd+W : Remove Tab
+      if (isCmdOrCtrl && e.key.toLowerCase() === 'w') {
+        e.preventDefault();
+        handleRemoveTab(activeTabId);
+        return;
+      }
       
       // F4 : Switch Tab
       if (e.key === 'F4' || (isCmdOrCtrl && (e.key === '[' || e.key === ']'))) {
