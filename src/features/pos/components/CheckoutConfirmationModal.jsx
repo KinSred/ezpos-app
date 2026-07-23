@@ -582,145 +582,113 @@ export default function CheckoutConfirmationModal({
                 </div>
               )}
 
-              <div className="mb-5">
-                <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 flex items-center justify-between">
-                  <span>Chiết Khấu / Giảm Giá</span>
-                  <AnimatePresence>
-                    {showShortcuts && (
-                      <motion.span initial={{opacity:0, scale:0.8}} animate={{opacity:1, scale:1}} exit={{opacity:0, scale:0.8}} className="text-[10px] bg-sky-500 text-white px-2 py-0.5 rounded shadow-sm normal-case font-bold tracking-normal flex items-center gap-1">
-                        <Command size={10} />/Ctrl + G
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
-                </h4>
-                <div className="flex gap-2">
-                  <div className="flex bg-slate-100 dark:bg-slate-800 rounded-xl p-1 flex-shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setDiscountType('percent');
-                        if (discount > 100) setDiscount(100);
-                      }}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-                        discountType === 'percent'
-                          ? 'bg-white dark:bg-slate-700 text-sky-600 dark:text-sky-400 shadow-sm'
-                          : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
-                      }`}
-                    >
-                      %
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setDiscountType('amount')}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-                        discountType === 'amount'
-                          ? 'bg-white dark:bg-slate-700 text-sky-600 dark:text-sky-400 shadow-sm'
-                          : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
-                      }`}
-                    >
-                      VNĐ
-                    </button>
-                  </div>
-                  <input 
-                    id="checkout-discount-input"
-                    type="text" 
-                    value={discount ? new Intl.NumberFormat('en-US').format(discount) : ''}
-                    onChange={(e) => {
-                      let val = e.target.value.replace(/,/g, '').replace(/\D/g, '');
-                      if (!val) { setDiscount(0); return; }
-                      let num = parseInt(val, 10);
-                      if (discountType === 'percent' && num > 100) num = 100;
-                      setDiscount(num);
-                    }}
-                    onBlur={() => {
-                      if (discountType === 'amount' && discount > 0 && discount < 1000) {
-                        setDiscount(discount * 1000);
-                      }
-                    }}
-                    className="flex-1 px-4 py-3 glass-input rounded-xl text-sm font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all shadow-inner"
-                    placeholder={`Nhập ${discountType === 'percent' ? '%' : 'số tiền'}...`}
-                  />
-                </div>
-              </div>
-
-              {pointsEnabled && customer && customer.points > 0 && (
-                <div className="mb-5">
-                  <h4 className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mb-2 flex items-center justify-between">
-                    <span>Sử Dụng Điểm Tích Lũy</span>
-                    <span className="text-[10px] bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded font-bold">
-                      Khả dụng: {customer.points}
-                    </span>
+              <div className="grid grid-cols-2 gap-3 mb-3">
+                {/* Chiết Khấu */}
+                <div>
+                  <h4 className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                    <span>Giảm Giá</span>
+                    <AnimatePresence>
+                      {showShortcuts && (
+                        <motion.span initial={{opacity:0, scale:0.8}} animate={{opacity:1, scale:1}} exit={{opacity:0, scale:0.8}} className="text-[10px] bg-sky-500 text-white px-2 py-0.5 rounded shadow-sm normal-case font-bold tracking-normal flex items-center gap-1">
+                          <Command size={10} />/Ctrl + G
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
                   </h4>
-                  <div className="flex gap-2">
+                  <div className="flex gap-1.5">
+                    <div className="flex bg-slate-100 dark:bg-slate-800 rounded-xl p-0.5 flex-shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDiscountType('percent');
+                          if (discount > 100) setDiscount(100);
+                        }}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                          discountType === 'percent'
+                            ? 'bg-white dark:bg-slate-700 text-sky-600 dark:text-sky-400 shadow-sm'
+                            : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                        }`}
+                      >
+                        %
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDiscountType('amount')}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                          discountType === 'amount'
+                            ? 'bg-white dark:bg-slate-700 text-sky-600 dark:text-sky-400 shadow-sm'
+                            : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                        }`}
+                      >
+                        VNĐ
+                      </button>
+                    </div>
                     <input 
+                      id="checkout-discount-input"
                       type="text" 
-                      value={pointsUsed ? new Intl.NumberFormat('en-US').format(pointsUsed) : ''}
+                      value={discount ? new Intl.NumberFormat('en-US').format(discount) : ''}
                       onChange={(e) => {
                         let val = e.target.value.replace(/,/g, '').replace(/\D/g, '');
-                        if (!val) { setPointsUsed(0); return; }
+                        if (!val) { setDiscount(0); return; }
                         let num = parseInt(val, 10);
-                        if (num > customer.points) num = customer.points;
-                        
-                        // Limit to max amount of points that cover totalAmount
-                        const maxPointsToCoverTotal = Math.ceil(totalAmount / pointsRedeemRatio);
-                        if (num > maxPointsToCoverTotal) num = maxPointsToCoverTotal;
-                        
-                        setPointsUsed(num);
+                        if (discountType === 'percent' && num > 100) num = 100;
+                        setDiscount(num);
                       }}
-                      className="flex-1 px-4 py-3 glass-input rounded-xl text-sm font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all shadow-inner"
-                      placeholder={`Nhập điểm... (1 điểm = ${pointsRedeemRatio}đ)`}
+                      onBlur={() => {
+                        if (discountType === 'amount' && discount > 0 && discount < 1000) {
+                          setDiscount(discount * 1000);
+                        }
+                      }}
+                      className="flex-1 w-full min-w-0 px-3 py-2 glass-input rounded-xl text-sm font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all shadow-inner"
+                      placeholder={`Nhập...`}
                     />
-                    {pointsUsed > 0 && (
-                      <div className="flex items-center justify-center px-3 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 font-bold rounded-xl border border-emerald-100 dark:border-emerald-800">
-                        -{formatPrice(pointsUsed * pointsRedeemRatio)}
-                      </div>
-                    )}
                   </div>
                 </div>
-              )}
 
-              <div className="mb-5">
-                <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 flex items-center justify-between">
-                  <span>Khác</span>
-                  <AnimatePresence>
-                    {showShortcuts && (
-                      <motion.span initial={{opacity:0, scale:0.8}} animate={{opacity:1, scale:1}} exit={{opacity:0, scale:0.8}} className="text-[10px] bg-sky-500 text-white px-2 py-0.5 rounded shadow-sm normal-case font-bold tracking-normal flex items-center gap-1">
-                        <Command size={10} />/Ctrl + P
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
-                </h4>
-                <div className="flex gap-2">
-                  <div className="flex bg-slate-100 dark:bg-slate-800 rounded-xl p-1 flex-shrink-0">
-                    <button
-                      type="button"
-                      className="px-3 py-1.5 rounded-lg text-xs font-bold transition-colors bg-white dark:bg-slate-700 text-sky-600 dark:text-sky-400 shadow-sm"
-                    >
-                      VNĐ
-                    </button>
+                {/* Khác */}
+                <div>
+                  <h4 className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                    <span>Phụ Thu</span>
+                    <AnimatePresence>
+                      {showShortcuts && (
+                        <motion.span initial={{opacity:0, scale:0.8}} animate={{opacity:1, scale:1}} exit={{opacity:0, scale:0.8}} className="text-[10px] bg-sky-500 text-white px-2 py-0.5 rounded shadow-sm normal-case font-bold tracking-normal flex items-center gap-1">
+                          <Command size={10} />/Ctrl + P
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
+                  </h4>
+                  <div className="flex gap-1.5">
+                    <div className="flex bg-slate-100 dark:bg-slate-800 rounded-xl p-0.5 flex-shrink-0">
+                      <button
+                        type="button"
+                        className="px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors bg-white dark:bg-slate-700 text-sky-600 dark:text-sky-400 shadow-sm"
+                      >
+                        VNĐ
+                      </button>
+                    </div>
+                    <input 
+                      id="checkout-surcharge-input"
+                      type="text" 
+                      value={surcharge ? new Intl.NumberFormat('en-US').format(surcharge) : ''}
+                      onChange={(e) => {
+                        let val = e.target.value.replace(/,/g, '').replace(/\D/g, '');
+                        if (!val) { setSurcharge(0); return; }
+                        let num = parseInt(val, 10);
+                        setSurcharge(num);
+                      }}
+                      onBlur={() => {
+                        if (surcharge > 0 && surcharge < 1000) {
+                          setSurcharge(surcharge * 1000);
+                        }
+                      }}
+                      className="flex-1 w-full min-w-0 px-3 py-2 glass-input rounded-xl text-sm font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all shadow-inner"
+                      placeholder="Nhập..."
+                    />
                   </div>
-                  <input 
-                    id="checkout-surcharge-input"
-                    type="text" 
-                    value={surcharge ? new Intl.NumberFormat('en-US').format(surcharge) : ''}
-                    onChange={(e) => {
-                      let val = e.target.value.replace(/,/g, '').replace(/\D/g, '');
-                      if (!val) { setSurcharge(0); return; }
-                      let num = parseInt(val, 10);
-                      setSurcharge(num);
-                    }}
-                    onBlur={() => {
-                      if (surcharge > 0 && surcharge < 1000) {
-                        setSurcharge(surcharge * 1000);
-                      }
-                    }}
-                    className="flex-1 px-4 py-3 glass-input rounded-xl text-sm font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all shadow-inner"
-                    placeholder="Nhập số tiền..."
-                  />
                 </div>
               </div>
               
-              <h4 className="text-xs font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-3 flex items-center justify-between">
+              <h4 className="text-xs font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-2 flex items-center justify-between">
                 <span>Hình thức thanh toán</span>
                 <AnimatePresence>
                   {showShortcuts && (
@@ -732,20 +700,20 @@ export default function CheckoutConfirmationModal({
               </h4>
  
               {/* Segmented Control Selector */}
-              <div className="grid grid-cols-3 gap-2 mb-4">
+              <div className="grid grid-cols-4 gap-1.5 mb-3">
                 <motion.button 
                     whileHover={{ y: -1 }}
                     whileTap={{ scale: 0.97 }}
                     type="button"
                     onClick={() => { setPaymentMethod('cash'); if (setIsCredit) setIsCredit(false); }}
-                    className={`p-4 rounded-2xl font-bold flex flex-col items-center justify-center gap-2 transition-all text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 border ${
+                    className={`p-2.5 rounded-xl font-bold flex flex-col items-center justify-center gap-1.5 transition-all text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 border ${
                       paymentMethod === 'cash'
                         ? 'bg-gradient-to-br from-sky-500 to-blue-600 text-white border-transparent shadow-lg shadow-sky-500/30'
                         : 'bg-white/40 dark:bg-slate-800/40 border-white/40 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:bg-white/70 dark:hover:bg-slate-700/50 shadow-sm'
                     }`}
                     aria-label="Thanh toán tiền mặt"
                   >
-                    <Coins size={20} strokeWidth={2} className={paymentMethod === 'cash' ? 'text-sky-500' : ''} />
+                    <Coins size={18} strokeWidth={2} className={paymentMethod === 'cash' ? 'text-sky-500' : ''} />
                     <span>Tiền Mặt</span>
                   </motion.button>
                   
@@ -754,14 +722,14 @@ export default function CheckoutConfirmationModal({
                     whileTap={{ scale: 0.97 }}
                     type="button"
                     onClick={() => { setPaymentMethod('vietqr'); if (setIsCredit) setIsCredit(false); }}
-                    className={`p-4 rounded-2xl font-bold flex flex-col items-center justify-center gap-2 transition-all text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 border ${
+                    className={`p-2.5 rounded-xl font-bold flex flex-col items-center justify-center gap-1.5 transition-all text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 border ${
                       paymentMethod === 'vietqr'
                         ? 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white border-transparent shadow-lg shadow-emerald-500/30'
                         : 'bg-white/40 dark:bg-slate-800/40 border-white/40 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:bg-white/70 dark:hover:bg-slate-700/50 shadow-sm'
                     }`}
                     aria-label="Thanh toán chuyển khoản"
                   >
-                    <QrCode size={20} strokeWidth={2} className={paymentMethod === 'vietqr' ? 'text-emerald-500' : ''} />
+                    <QrCode size={18} strokeWidth={2} className={paymentMethod === 'vietqr' ? 'text-emerald-500' : ''} />
                     <span>Chuyển Khoản</span>
                   </motion.button>
 
@@ -770,16 +738,16 @@ export default function CheckoutConfirmationModal({
                     whileTap={{ scale: 0.97 }}
                     type="button"
                     onClick={() => { setPaymentMethod('split'); if (setIsCredit) setIsCredit(false); }}
-                    className={`p-4 rounded-2xl font-bold flex flex-col items-center justify-center gap-2 transition-all text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 border ${
+                    className={`p-2.5 rounded-xl font-bold flex flex-col items-center justify-center gap-1.5 transition-all text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 border ${
                       paymentMethod === 'split'
                         ? 'bg-gradient-to-br from-indigo-500 to-violet-600 text-white border-transparent shadow-lg shadow-indigo-500/30'
                         : 'bg-white/40 dark:bg-slate-800/40 border-white/40 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:bg-white/70 dark:hover:bg-slate-700/50 shadow-sm'
                     }`}
                     aria-label="Thanh toán kết hợp"
                   >
-                    <div className="flex -space-x-2">
-                      <Coins size={20} strokeWidth={2} className={paymentMethod === 'split' ? 'text-white' : 'text-slate-400'} />
-                      <QrCode size={20} strokeWidth={2} className={paymentMethod === 'split' ? 'text-white' : 'text-slate-400'} />
+                    <div className="flex -space-x-1">
+                      <Coins size={18} strokeWidth={2} className={paymentMethod === 'split' ? 'text-white' : 'text-slate-400'} />
+                      <QrCode size={18} strokeWidth={2} className={paymentMethod === 'split' ? 'text-white' : 'text-slate-400'} />
                     </div>
                     <span>Kết Hợp</span>
                   </motion.button>
@@ -792,14 +760,14 @@ export default function CheckoutConfirmationModal({
                       setPaymentMethod('credit'); 
                       if (setIsCredit) setIsCredit(true); 
                     }}
-                    className={`p-4 rounded-2xl font-bold flex flex-col items-center justify-center gap-2 transition-all text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 border ${
+                    className={`p-2.5 rounded-xl font-bold flex flex-col items-center justify-center gap-1.5 transition-all text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 border ${
                       paymentMethod === 'credit'
                         ? 'bg-gradient-to-br from-amber-500 to-orange-500 text-white border-transparent shadow-lg shadow-amber-500/30'
                         : 'bg-white/40 dark:bg-slate-800/40 border-white/40 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:bg-white/70 dark:hover:bg-slate-700/50 shadow-sm'
                     }`}
                     aria-label="Thanh toán ghi nợ"
                   >
-                    <CreditCard size={20} strokeWidth={2} className={paymentMethod === 'credit' ? 'text-amber-500' : ''} />
+                    <CreditCard size={18} strokeWidth={2} className={paymentMethod === 'credit' ? 'text-amber-500' : ''} />
                     <span>Ghi Nợ</span>
                   </motion.button>
                 </div>
@@ -871,7 +839,7 @@ export default function CheckoutConfirmationModal({
                                 if (setIsCredit) setIsCredit(nextMethod === 'credit');
                               }
                             }}
-                            className="w-full px-5 py-4 bg-white/70 dark:bg-black/30 border border-white/60 dark:border-white/10 rounded-2xl text-3xl sm:text-4xl font-black text-sky-600 dark:text-sky-400 focus:outline-none focus:bg-white focus:ring-4 focus:ring-sky-500/20 transition-all font-mono shadow-inner tracking-wider"
+                            className="w-full px-4 py-3 bg-white/70 dark:bg-black/30 border border-white/60 dark:border-white/10 rounded-2xl text-2xl sm:text-3xl font-black text-sky-600 dark:text-sky-400 focus:outline-none focus:bg-white focus:ring-4 focus:ring-sky-500/20 transition-all font-mono shadow-inner tracking-wider"
                             placeholder="VD: 50,000..."
                             aria-label="Tiền mặt khách đưa"
                           />
