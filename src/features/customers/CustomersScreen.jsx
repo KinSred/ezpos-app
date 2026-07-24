@@ -377,7 +377,9 @@ export default function CustomersScreen() {
                         <History size={14} className="opacity-0 group-hover:opacity-60 transition-opacity text-sky-500" />
                       </div>
                     </td>
-                    <td className="py-4 px-6 text-slate-500 dark:text-slate-400 font-medium">{customer.phone.startsWith('_vl_') ? 'Không có' : customer.phone}</td>
+                    <td className="py-4 px-6 text-slate-500 dark:text-slate-400 font-medium">
+                      {(customer.phone.startsWith('_vl_') || customer.phone.toLowerCase() === 'không' || customer.phone.toLowerCase() === 'khong' || customer.phone.toLowerCase() === 'none') ? 'Không có' : customer.phone}
+                    </td>
                     <td className="py-4 px-6 text-right font-black text-emerald-500 dark:text-emerald-400">
                       {new Intl.NumberFormat('en-US').format(customer.points || 0)} đ
                     </td>

@@ -155,7 +155,7 @@ export default function CustomerSelector({ customer, setCustomer, isCredit }) {
                     >
                       <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 min-w-0 pr-3">
                         <div className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate">{c.name}</div>
-                        {!c.phone.startsWith('_vl_') && (
+                        {!(c.phone.startsWith('_vl_') || c.phone.toLowerCase() === 'không' || c.phone.toLowerCase() === 'khong' || c.phone.toLowerCase() === 'none') && (
                           <div className="text-xs text-slate-500 dark:text-slate-400 font-mono bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md inline-block w-fit">{c.phone}</div>
                         )}
                       </div>

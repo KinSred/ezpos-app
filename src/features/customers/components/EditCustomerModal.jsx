@@ -8,12 +8,14 @@ export default function EditCustomerModal({ isOpen, onClose, onSuccess, customer
   const [editName, setEditName] = useState('');
   const [editPhone, setEditPhone] = useState('');
   const [editDebt, setEditDebt] = useState('');
+  const [editPoints, setEditPoints] = useState('');
 
   useEffect(() => {
     if (customerToEdit) {
       setEditName(customerToEdit.name);
       setEditPhone(customerToEdit.phone);
       setEditDebt(customerToEdit.debt ? customerToEdit.debt.toString() : '0');
+      setEditPoints(customerToEdit.points ? customerToEdit.points.toString() : '0');
     }
   }, [customerToEdit, isOpen]);
 
@@ -29,6 +31,7 @@ export default function EditCustomerModal({ isOpen, onClose, onSuccess, customer
     const name = editName.trim();
     let phone = editPhone.trim();
     const debt = parseFloat(editDebt.replace(/[^0-9]/g, '')) || 0;
+    const points = parseInt(editPoints.replace(/[^0-9]/g, '')) || 0;
     
     if (!name) {
       toast.error('Vui lòng nhập tên khách hàng');
@@ -61,12 +64,12 @@ export default function EditCustomerModal({ isOpen, onClose, onSuccess, customer
         const previousDebt = Number(oldData.debt) || 0;
 
         if (phone !== customerToEdit.phone) {
-          await db.customers.add({ ...oldData, phone, name, debt });
+          await db.customers.add({ ...oldData, phone, name, debt, points });
           await db.orders.where('customerPhone').equals(customerToEdit.phone).modify({ customerPhone: phone });
           await db.customerTransactions.where('customerPhone').equals(customerToEdit.phone).modify({ customerPhone: phone });
           await db.customers.delete(customerToEdit.phone);
         } else {
-          await db.customers.update(customerToEdit.phone, { name, debt });
+          await db.customers.update(customerToEdit.phone, { name, debt, points });
         }
 
         if (debt !== previousDebt) {
@@ -155,6 +158,24 @@ export default function EditCustomerModal({ isOpen, onClose, onSuccess, customer
                   placeholder="VD: 0..."
                 />
                 <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 font-bold text-xs">VNĐ</span>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-500 dark:text-slate-455 uppercase tracking-wider mb-2">Điểm Tích Luỹ Hiện Tại</label>
+              <div className="relative">
+                <input 
+                  type="text"
+                  value={formatNumberWithCommas(editPoints)}
+                  onChange={(e) => {
+                    const clean = e.target.value.replace(/[^0-9]/g, '');
+                    const parsed = clean ? parseInt(clean, 10).toString() : '';
+                    setEditPoints(parsed);
+                  }}
+                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:border-emerald-500 focus:bg-white dark:focus:bg-slate-900 focus:ring-1 focus:ring-emerald-500 focus:outline-none transition-all text-slate-900 dark:text-slate-100 font-semibold font-mono"
+                  placeholder="VD: 0..."
+                />
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 font-bold text-xs">Điểm</span>
               </div>
             </div>
 
