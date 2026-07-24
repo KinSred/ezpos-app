@@ -44,10 +44,13 @@ export default function PaymentModal({ isOpen, onClose, onSuccess, selectedCusto
     setIsSubmitting(true);
     try {
       await db.transaction('rw', [db.customers, db.customerTransactions, db.shifts], async () => {
-        if (!currentShift?.id) throw new Error('Vui lòng mở ca trước khi thu nợ.');
-        const liveShift = await db.shifts.get(currentShift.id);
-        if (!liveShift || liveShift.status !== 'active') {
-          throw new Error('Ca làm việc đã kết thúc. Vui lòng mở ca mới trước khi thu nợ.');
+        const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'manager';
+        if (!isAdmin) {
+          if (!currentShift?.id) throw new Error('Vui lòng mở ca trước khi thu nợ.');
+          const liveShift = await db.shifts.get(currentShift.id);
+          if (!liveShift || liveShift.status !== 'active') {
+            throw new Error('Ca làm việc đã kết thúc. Vui lòng mở ca mới trước khi thu nợ.');
+          }
         }
 
         const currentCustomer = await db.customers.get(selectedCustomer.phone);
